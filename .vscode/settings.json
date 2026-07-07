@@ -1,0 +1,17 @@
+{
+  "chat.tools.terminal.autoApprove": {
+    "cp": true,
+    "/^node --check apl\\.js && ls -l apl\\.js\\.old$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^node --check apl\\.js && node benchmark-reduceStack\\.mjs$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^node --check apl\\.js && node --check benchmark-reduceStack\\.mjs && node benchmark-reduceStack\\.mjs$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
+  }
+}

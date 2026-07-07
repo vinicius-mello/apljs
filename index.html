@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>APL to JavaScript</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d1117;
+      --paper: #151b23;
+      --ink: #e6edf3;
+      --muted: #a3b1bf;
+      --accent: #2ea043;
+      --accent-2: #d29922;
+      --border: #2d3748;
+      --shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(46, 160, 67, 0.18) 0, transparent 32%),
+        radial-gradient(circle at 88% 18%, rgba(210, 153, 34, 0.14) 0, transparent 28%),
+        linear-gradient(145deg, #0b0f14 0%, #111722 50%, #0a0f18 100%);
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 16px 22px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(14, 19, 28, 0.86);
+      backdrop-filter: blur(6px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.18rem;
+      letter-spacing: 0.02em;
+    }
+
+    main {
+      width: min(1200px, 100% - 20px);
+      margin: 14px auto 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      flex: 1;
+    }
+
+    section {
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 65vh;
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(90deg, #1a2230 0%, #131b27 100%);
+    }
+
+    .panel-head strong {
+      font-size: 0.96rem;
+      font-weight: 700;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    button {
+      border: 1px solid transparent;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 0.84rem;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      transition: transform 120ms ease, background 120ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      background: #2a913d;
+    }
+
+    button.secondary {
+      background: transparent;
+      color: var(--ink);
+      border-color: var(--border);
+    }
+
+    button.secondary:hover {
+      background: #1c2533;
+    }
+
+    #apl-editor {
+      flex: 1;
+      overflow: auto;
+      font-size: 15px;
+    }
+
+    .cm-editor {
+      height: 100%;
+    }
+
+    .cm-scroller {
+      font-family: "Fira Code", "IBM Plex Mono", monospace;
+    }
+
+    #js-output {
+      flex: 1;
+      border: 0;
+      resize: none;
+      padding: 12px;
+      font-family: "Fira Code", "IBM Plex Mono", monospace;
+      font-size: 14px;
+      line-height: 1.45;
+      color: #d0dceb;
+      background: #0f141c;
+    }
+
+    #run-result {
+      margin: 0;
+      border-top: 1px dashed var(--border);
+      padding: 10px 12px;
+      font-family: "Fira Code", "IBM Plex Mono", monospace;
+      font-size: 0.88rem;
+      line-height: 1.35;
+      background: #0f141d;
+      color: #d2deea;
+      min-height: 44px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    #escape-hint {
+      margin: 0;
+      border-top: 1px dashed var(--border);
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      color: var(--muted);
+      background: #111824;
+    }
+
+    #status {
+      margin: 0;
+      border-top: 1px dashed var(--border);
+      padding: 8px 12px;
+      font-size: 0.86rem;
+      color: #b5c3d1;
+      background: #121a24;
+      min-height: 36px;
+    }
+
+    @media (max-width: 920px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      section {
+        min-height: 40vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>APL to JavaScript Translator</h1>
+  </header>
+
+  <main>
+    <section>
+      <div class="panel-head">
+        <strong>APL</strong>
+        <div class="actions">
+          <button id="run-btn">Translate</button>
+          <button id="execute-btn">Run</button>
+          <button id="sample-btn" class="secondary">Example</button>
+        </div>
+      </div>
+      <div id="apl-editor"></div>
+      <p id="escape-hint">APL escapes: \iota -&gt; ⍳, \rho -&gt; ⍴, \alpha -&gt; ⍺, \omega -&gt; ⍵, \times -&gt; ×</p>
+      <p id="status">Ready to translate.</p>
+    </section>
+
+    <section>
+      <div class="panel-head">
+        <strong>Generated JavaScript</strong>
+      </div>
+      <textarea id="js-output" readonly></textarea>
+      <pre id="run-result">Result: (not yet executed)</pre>
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.15.4/beautify.min.js"></script>
+
+  <script type="module">
+    import { EditorState } from "https://esm.sh/@codemirror/state@6";
+    import { EditorView, keymap, lineNumbers } from "https://esm.sh/@codemirror/view@6";
+    import { defaultKeymap, history, historyKeymap } from "https://esm.sh/@codemirror/commands@6";
+    import { StreamLanguage } from "https://esm.sh/@codemirror/language@6";
+    import { apl } from "https://esm.sh/@codemirror/legacy-modes@6/mode/apl";
+    import { syntaxHighlighting, HighlightStyle } from "https://esm.sh/@codemirror/language@6";
+    import { tags } from "https://esm.sh/@lezer/highlight@1";
+    import { aplToJavaScript, evaluateApl } from "./apl.js";
+
+    const SAMPLE_APL =` 
+pow←{             ⍝ power operator: apply ⍹ times
+  ⍹=0:⍵           ⍝ ⍹ is 0: finished
+  ⍺⍺∇∇(⍹-1)⍺⍺ ⍵   ⍝ otherwise: recurse
+}
+
+incr←{1+⍵}        ⍝ define an increment function
+(incr pow 3) 5    ⍝ apply it 3 times to 5
+`;
+
+
+    const status = document.getElementById("status");
+    const jsOutput = document.getElementById("js-output");
+    const runResult = document.getElementById("run-result");
+
+    const APL_ESCAPES = {
+      upshoejot: "⍝",
+      diamond: "⋄",
+      iota: "⍳",
+      rho: "⍴",
+      alpha: "⍺",
+      omega: "⍵",
+      times: "×",
+      divide: "÷",
+      minus: "−",
+      leq: "≤",
+      geq: "≥",
+      neq: "≠",
+      gradeup: "⍋",
+      gradedown: "⍒",
+      reduce: "/",
+      scan: "\\",
+      assign: "←",
+      ceiling: "⌈",
+      floor: "⌊",
+      uomega: "⍹",
+      ualpha: "⍶",
+      nabla: "∇",
+      left: "⊣",
+      right: "⊢",
+    };
+
+    let applyingEscape = false;
+
+    const aplHighlightTheme = HighlightStyle.define([
+      { tag: tags.keyword, color: "#58a6ff", fontWeight: "700" },
+      { tag: [tags.operator, tags.arithmeticOperator], color: "#ffa657", fontWeight: "700" },
+      { tag: tags.number, color: "#d2a8ff" },
+      { tag: tags.string, color: "#7ee787" },
+      { tag: tags.comment, color: "#8b949e", fontStyle: "italic" },
+      { tag: tags.variableName, color: "#e6edf3" },
+    ]);
+
+    const editorDarkTheme = EditorView.theme({
+      "&": {
+        backgroundColor: "#0f141d",
+        color: "#e6edf3",
+      },
+      ".cm-content": {
+        caretColor: "#2ea043",
+      },
+      ".cm-cursor, .cm-dropCursor": {
+        borderLeftColor: "#2ea043",
+      },
+      ".cm-gutters": {
+        backgroundColor: "#0c1118",
+        color: "#7d8b99",
+        borderRight: "1px solid #2d3748",
+      },
+      ".cm-activeLine": {
+        backgroundColor: "rgba(88, 166, 255, 0.08)",
+      },
+      ".cm-activeLineGutter": {
+        backgroundColor: "rgba(88, 166, 255, 0.12)",
+      },
+      ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
+        backgroundColor: "rgba(46, 160, 67, 0.28)",
+      },
+    }, { dark: true });
+
+    const expandEscapeAtCursor = (view) => {
+      if (applyingEscape) {
+        return false;
+      }
+
+      const head = view.state.selection.main.head;
+      const start = Math.max(0, head - 40);
+      const prefix = view.state.doc.sliceString(start, head);
+      const match = prefix.match(/\\([a-z][a-z0-9_]*)$/i);
+      if (!match) {
+        return false;
+      }
+
+      const symbol = APL_ESCAPES[match[1].toLowerCase()];
+      if (!symbol) {
+        return false;
+      }
+
+      applyingEscape = true;
+      view.dispatch({
+        changes: {
+          from: head - match[0].length,
+          to: head,
+          insert: symbol,
+        },
+      });
+      applyingEscape = false;
+      return true;
+    };
+
+    const editor = new EditorView({
+      state: EditorState.create({
+        doc: SAMPLE_APL,
+        extensions: [
+          StreamLanguage.define(apl),
+          editorDarkTheme,
+          syntaxHighlighting(aplHighlightTheme),
+          lineNumbers(),
+          history(),
+          keymap.of([...defaultKeymap, ...historyKeymap]),
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged) {
+              expandEscapeAtCursor(update.view);
+              translate();
+            }
+          }),
+        ],
+      }),
+      parent: document.getElementById("apl-editor"),
+    });
+
+    const translate = () => {
+      try {
+        const aplSource = editor.state.doc.toString();
+        const generated = aplToJavaScript(aplSource);
+        jsOutput.value = window.js_beautify(generated, {
+          indent_size: 2,
+          space_in_empty_paren: true,
+          max_preserve_newlines: 2,
+        });
+        status.textContent = "Translation successful.";
+        return generated;
+      } catch (error) {
+        jsOutput.value = "";
+        status.textContent = "Error: " + error.message;
+        return null;
+      }
+    };
+
+    const execute = () => {
+      try {
+        const aplSource = editor.state.doc.toString();
+        const value = evaluateApl(aplSource);
+        runResult.textContent = "Result: " + JSON.stringify(value, null, 2);
+        status.textContent = "Executed successfully.";
+      } catch (error) {
+        runResult.textContent = "Execution error: " + error.message;
+        status.textContent = "Execution failed.";
+      }
+    };
+
+    document.getElementById("run-btn").addEventListener("click", translate);
+    document.getElementById("execute-btn").addEventListener("click", () => {
+      const generated = translate();
+      if (generated) {
+        execute();
+      }
+    });
+
+    document.getElementById("sample-btn").addEventListener("click", () => {
+      editor.dispatch({
+        changes: {
+          from: 0,
+          to: editor.state.doc.length,
+          insert: SAMPLE_APL,
+        },
+      });
+      translate();
+      runResult.textContent = "Result: (not yet executed)";
+    });
+
+    translate();
+  </script>
+</body>
+</html>
