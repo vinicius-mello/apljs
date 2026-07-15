@@ -2,7 +2,7 @@
 const tokenizer = (text) => {
   const tokens = [];
   const specs = [
-    { regex: /^([\r?\n]|⋄)+/u, type: 'SEPARATOR' },
+    { regex: /^([\r\n]|⋄)+/u, type: 'SEPARATOR' },
     { regex: /^⍝[^\n]*/u, type: 'COMMENT' },
     { regex: /^(⍺{1,2}|⍵{1,2}|∇{1,2}|[⍶⍹⍙])/u, type: 'SPECIAL_VAR' },
     { regex: /^\s+/, type: 'WHITESPACE' },
@@ -15,7 +15,7 @@ const tokenizer = (text) => {
     { regex: /^←/u, type: 'ASSIGN' },
     { regex: /^:/, type: 'GUARD' },
     { regex: /^∘\./u, type: 'SYMBOL' },
-    { regex: /^[,-\/\p{Math}\p{Sm}\p{So}]/u, type: 'SYMBOL' },
+    { regex: /^[@\\!\?\*¨,-\/\p{Math}\p{Sm}\p{So}]/u, type: 'SYMBOL' },
     { regex: /^[\p{L}_][\p{L}0-9_]*/u, type: 'IDENTIFIER' }
   ];
     
@@ -57,8 +57,9 @@ const global_category = {
   '|': { category:'F', name: 'residue' },
   '⍴': { category:'F', name: 'rho' },
   '/': { category:'M', name: 'reduce' },
+  '⌿': { category:'F', name: 'compress' },
   '\\': { category:'M', name: 'scan' },
-  '⍨': { category:'M', name: 'commute' },
+  '⍨': { category:'M', name: 'selfie' },
   ',': { category:'F', name: 'comma' },
   '⍪': { category:'F', name: 'double_comma' },
   '⍳': { category:'F', name: 'iota' },
@@ -77,7 +78,26 @@ const global_category = {
   '⎕': { category:'V', name: 'quad' },
   '⊢': { category:'F', name: 'right' },
   '⊣': { category:'F', name: 'left' },
+  '.': { category:'D', name: 'dot' },
   '∘.': { category:'M', name: 'outer' },
+  '∘': { category:'D', name: 'jot' },
+  '⍬': { category:'V', name: 'zilde' },
+  '⌽': { category:'F', name: 'reverse' },
+  '¨': { category:'M', name: 'each' },
+  '*': { category:'F', name: 'exp' },
+  '⍟': { category:'F', name: 'log' },
+  '?' : { category:'F', name: 'deal' },
+  '≡': { category:'F', name: 'match' },
+  '!': { category:'F', name: 'factorial' },
+  '∨': { category:'F', name: 'or' },
+  '∧': { category:'F', name: 'and' },
+  '~': { category:'F', name: 'not' },
+  '⍲': { category:'F', name: 'nand' },
+  '⍱': { category:'F', name: 'nor' },
+  '⍉': { category:'F', name: 'transpose' },
+  '⌷': { category:'F', name: 'squad' },
+  '⊂': { category:'F', name: 'enclose' },
+  '@': { category:'D', name: 'at' }
 }
 
 const _a_ = global_category['⍺'].name;
@@ -85,53 +105,294 @@ const _w_ = global_category['⍵'].name;
 const _aa_ = global_category['⍺⍺'].name;
 const _ww_ = global_category['⍵⍵'].name;
 
+const mdfunc = (m,d,w,a) => {
+  if(a === undefined) {
+    if (typeof w === 'number') {
+      return m(w);
+    } else if (Array.isArray(w)) {
+      return w.map(x => mdfunc(m,d,x));
+    } else {
+      throw new Error('Unsupported type for negation');
+    }
+  }
+  if (typeof w === 'number' && typeof a === 'number') {
+    return d(w, a);
+  } 
+  if (Array.isArray(w) && typeof a === 'number') {
+    return w.map(x => mdfunc(m,d,x,a));
+  }
+  if (typeof w === 'number' && Array.isArray(a)) {
+    return a.map(x => mdfunc(m,d,w,x));
+  }
+  if (Array.isArray(w) && Array.isArray(a)) {
+    if (w.length !== a.length) {
+      throw new Error('Arrays must be of the same length for element-wise subtraction.');
+    }
+    return a.map((x, i) => mdfunc(m,d,w[i],x));
+  } else {
+    throw new Error('Unsupported types for subtraction');
+  }
+}
+
+const matchRec = (w, a) => {
+  if (typeof w === 'number' && typeof a === 'number') {
+    return w === a ? 1 : 0;
+  }
+  if (typeof w === 'string' && typeof a === 'string') {
+    return w === a ? 1 : 0;
+  }
+  if (Array.isArray(w) && Array.isArray(a)) { 
+    if (w.length !== a.length) 
+      return 0;
+    for (let i = 0; i < w.length; i++) {
+      if (matchRec(w[i], a[i]) === 0) {
+        return 0;
+      }
+    }
+    return 1;
+  }
+  return 0;
+};
+
+const factorial = (n) => {
+  if (n < 0) {
+    throw new Error('Factorial is not defined for negative numbers');
+  } 
+  if (n === 0) {
+    return 1;
+  }
+  let result = 1;
+  for (let i = 1; i <= n; i++) {
+    result *= i;
+  }
+  return result;
+};
+
+const binomial = (n, k) => {
+  if (k < 0 || k > n) {
+    throw new Error('Invalid values for binomial coefficient');
+  }
+  return factorial(n) / (factorial(k) * factorial(n - k));
+};
+
+const gcd = (a, b) => {
+  if (b === 0) {
+    return a;
+  }
+  return gcd(b, a % b);
+};
+
+const lcm = (a, b) => {
+  if (a === 0 || b === 0) {
+    return 0;
+  }
+  return Math.abs(a * b) / gcd(a, b);
+};
+
+const drel = (f, w, a) => {
+  if (typeof w === 'number' && typeof a === 'number') {
+    return f(w, a) ? 1 : 0;
+  }
+  if(typeof w === 'string' && typeof a === 'string') {
+    if(a.length===1) {
+      return w.split('').map(x => f(x, a) ? 1 : 0);
+    }
+    if(w.length===1) {
+      return a.split('').map(x => f(w, x) ? 1 : 0);
+    }
+    if(w.length===a.length) {
+      return a.split('').map((x,i) => f(w[i], x) ? 1 : 0);
+    }
+  }
+  if(!Array.isArray(a) && Array.isArray(w)) {
+    return w.map(x => drel(f, x, a));
+  }
+  if(Array.isArray(a) && !Array.isArray(w)) {
+    return a.map(x => drel(f, w, x));
+  }
+  if(Array.isArray(a) && Array.isArray(w)) {
+    if (a.length !== w.length) {
+      throw new Error('Arrays must be of the same length for element-wise comparison.');
+    }
+    return a.map((x, i) => drel(f, w[i], x));
+  }
+  throw new Error('Unsupported types for comparison');
+}
+
+const transposeRec = (a) => {
+  if (!Array.isArray(a) || !Array.isArray(a[0])) {  
+    return a;
+  }
+  const result = [];
+  const rows = a.length;
+  for(let i=0; i<a[0].length; i++) {
+    const newRow = transposeRec(a.map(row => row[i]));
+    result.push(newRow);
+  }
+  return result;
+};
+
+const shapeRec = (arr) => {
+  if(!Array.isArray(arr)) {
+    return [];
+  }
+  const shape = shapeRec(arr[0]);
+  shape.splice(0,0,arr.length);
+  return shape;      
+}
+
+const fillShapeRec = (shape0, fillFunc) => {
+  let index = 0;
+  const fshape = (prefix, cellshape) => {
+    if (cellshape.length === 0)
+      return fillFunc(prefix, index++);  
+    let sl = cellshape.slice(1);
+    let result = [];
+    for (let i = 0; i < cellshape[0]; i++) {
+      const subArray = fshape(prefix.concat(i), sl);
+      result.push(subArray);
+    }
+    return result;
+  };
+  return fshape([], shape0);
+};
+
+const at = (arr, idx) => {
+  let result = arr;
+  for (let i = 0; i < idx.length; i++) {
+    result = result[idx[i]];
+  }
+  return result;
+};
+
+const assignRec = (arr, idx, value) => {
+  if(typeof idx === 'number') {
+    arr[idx] = value;
+  }
+  let result = arr;
+  for (let i = 0; i < idx.length - 1; i++) {
+    result = result[idx[i]];
+  }
+  result[idx[idx.length - 1]] = value;
+};
+
+const getRec = (arr, idx) => {
+  if (typeof idx === 'number') {
+    return arr[idx];
+  }
+  if (!Array.isArray(idx)) {
+    throw new Error('Unsupported index type');
+  }
+  if (idx.length === 0) {
+    return arr;
+  }
+  const t = idx[0];
+  const rest = idx.slice(1);
+  if (typeof t === 'number') {
+    return getRec(arr[t], rest);
+  }
+  const result = [];
+  for (let i = 0; i < t.length; i++) {
+    result.push(getRec(arr[t[i]], rest));
+  }
+  return result;
+};
+  
 const G = {
+  zilde: [],
   set quad(value) {
     console.log('⎕:', value);
   },
   right: (w) => w,
   left: (w,a) => (a===undefined?w:a),
-  rho: function(w, a) {
+  each: (f)=>(w, a) => {
+    if (typeof f !== 'function') {
+      throw new Error('Each requires a function');
+    }
+    if (Array.isArray(w)) {
+      return w.map(x => f(x, a));
+    } else {
+      return f(w, a);
+    }
+  },
+  reverse: (w) => {
+    if (Array.isArray(w)) {
+      return w.slice().reverse();
+    } else if (typeof w === 'string') {
+      return w.split('').reverse().join('');
+    } else {
+      throw new Error('Unsupported type for reverse');
+    }
+  },
+  selfie: (f)=>(w, a) => {
+    if(typeof f !== 'function')
+      return f;
+    return f(a,w);
+  },
+  rho: (w, a) => {
     if (a===undefined) {
-      //shape of w
-      const rec = (arr) => {
-        if(!Array.isArray(arr)) {
-          return [];
-        }
-        const shape = rec(arr[0]);
-        shape.splice(0,0,arr.length);
-        return shape;      
-      }
-      return rec(w);
+      return shapeRec(w);
+    }
+    if (!Array.isArray(w)) {
+      w = [w];
+    }
+    if (!Array.isArray(a)) {
+      a = [a];
     }
     const m = w.length;
-    let index = 0;
-    const fillShape = (shape) => {
-      if (shape.length === 1) {
-        let result = [];
-        for (let i = 0; i < shape[0]; i++) {
-          result.push(w[index % m]);
-          index++;
-        }
-        return result;
-      }
-      let result = [];
-      for (let i = 0; i < shape[0]; i++) {
-        const subArray = fillShape(shape.slice(1));
-        result.push(subArray);
-      }
-      return result;
-    };
-    return fillShape(a);
+    return fillShapeRec(a, (prefix, index) => w[index % m]);
   },
-  tally: (w) => {
+  match: (w, a) => {
+    return matchRec(w, a);  
+  },
+  tally: (w, a) => {
+    if (a !== undefined) {
+      return matchRec(w, a)===1 ? 0 : 1; 
+    }
     if (Array.isArray(w)||typeof w === 'string') {
       return w.length;
     } else {
       throw new Error('Unsupported type for tally');
     }
+  }, 
+  compress: (w, a) => {
+    if (typeof w === 'string' && Array.isArray(a)) {
+      w = w.split('');
+      let result = '';
+      for (let i = 0; i < w.length; i++) {
+        for(let j = 0; j < a[i]; j++) {
+          result = result + w[i];
+        }
+      }
+      return result;
+    }
+    if(!Array.isArray(w) || !Array.isArray(a)) {
+      throw new Error('Unsupported types for compress');
+    }
+    const result = [];
+    for (let i = 0; i < w.length; i++) {
+      for(let j = 0; j < a[i]; j++) {
+        result.push(w[i]);
+      }
+    }
+    return result;
   },
-  outer: (f)=>(w, a) => {
+  deal: (w, a) => {
+    if(a===undefined) {
+      return mdfunc(x => Math.floor(Math.random() * x), undefined, w);
+    } else {
+      if (typeof w === 'number' && typeof a === 'number') {
+        const result = [];
+        for (let i = 0; i < a; i++) {
+          result.push(Math.floor(Math.random() * w));
+        }
+        return result;
+      } else {
+        throw new Error('Unsupported types for deal');
+      }
+    }
+  },
+  outer: (f) => (w, a) => {
     if (typeof f !== 'function') {
       throw new Error('Outer requires a function');
     }
@@ -145,86 +406,103 @@ const G = {
     }
     return result;
   },
-  equals: (a, b) => {
-    if (typeof a === 'number' && typeof b === 'number') {
-      return a === b;
-    } else {
-      throw new Error('Unsupported types for comparison');
+  dot: (aa,ww) => (w, a) => {
+    if (typeof aa !== 'function' || typeof ww !== 'function') {
+      throw new Error('Dot requires two functions');
     }
+    const sw = shapeRec(w);
+    const sa = shapeRec(a);
+    if(sa.at(-1) !== sw.at(0)) {
+      throw new Error('Incompatible shapes for dot product');
+    }
+    const resultShape = sa.slice(0, -1).concat(sw.slice(1));
+    w = transposeRec(w);
+    return fillShapeRec(resultShape, (prefix, index) => {
+      const lidx = prefix.slice(0, sa.length - 1);
+      const ridx = prefix.slice(sa.length - 1);
+      const left = at(a, lidx);
+      const right = at(w, ridx);
+      const result = ww(left, right);
+      return result.reduceRight(aa);      
+    });
+  },
+  equals: (w,a) => {
+    return drel((x,y) => y===x, w, a);
+  },
+  not_equals: (w, a) => {
+    return drel((x,y) => y!==x, w, a); 
+  },
+  less_than: (w, a) => {
+    return drel((x,y) => y<x, w, a);
+  },
+  less_than_or_equal: (w, a) => {
+    return drel((x,y) => y<=x, w, a); 
+  },
+  greater_than: (w, a) => {
+    return drel((x,y) => y>x, w, a);
+  },
+  greater_than_or_equal: (w, a) => {
+    return drel((x,y) => y>=x, w, a);
   },
   residue: (w, a) => {
-    if (typeof w === 'number' && typeof a === 'number') {
-      return w % a;
-    } else {
-      throw new Error('Unsupported types for residue');
-    }
+    return mdfunc(x => Math.abs(x), (x,y) => x % y, w, a);
   },
   divide: (w, a) => {
-    if (typeof w === 'number' && typeof a === 'number') {
-      return a / w;
-    } else {
-      throw new Error('Unsupported types for division');
-    }
+    return mdfunc(x => 1/x, (x,y) => y/x, w, a);
   },
   plus: (w, a) => {
-    if(typeof w === 'number' && a === undefined) {
-      return w;
-    }
-    if(Array.isArray(w) && a === undefined) {
-      return w.map(x => Math.abs(x));
-    }
-    if (typeof w === 'number' && typeof a === 'number') {
-      return w + a;
-    } else if (Array.isArray(a) && typeof w === 'number') {
-      return a.map(x => x + w);
-    } else if (typeof a === 'number' && Array.isArray(w)) {
-      return w.map(x => a + x);
-    } else if (Array.isArray(a) && Array.isArray(w)) {
-      if (a.length !== w.length) {
-        throw new Error('Arrays must be of the same length for element-wise addition.');
-      }
-      return a.map((x, i) => x + w[i]);
-    } else {
-      throw new Error('Unsupported types for addition');
-    }
+    return mdfunc(x => x, (x,y) => y+x, w, a);
   },
-  minus: (b, a) => {
-    if (typeof a === 'number' && typeof b === 'number') {
-      return a - b;
-    } else if (Array.isArray(a) && typeof b === 'number') {
-      return a.map(x => x - b);
-    } else if (typeof a === 'number' && Array.isArray(b)) {
-      return b.map(x => a - x);
-    } else if (Array.isArray(a) && Array.isArray(b)) {
-      if (a.length !== b.length) {
-        throw new Error('Arrays must be of the same length for element-wise subtraction.');
-      }
-      return a.map((x, i) => x - b[i]);
-    } else {
-      throw new Error('Unsupported types for subtraction');
-    }
+  minus: (w, a) => {
+    return mdfunc(x => -x, (x,y) => y-x, w, a);
   },
-  times: (a, b) => {
-    if (typeof a === 'number' && typeof b === 'number') {
-      return a * b;
-    } else if (Array.isArray(a) && typeof b === 'number') {
-      return a.map(x => x * b);
-    } else if (typeof a === 'number' && Array.isArray(b)) {
-      return b.map(x => a * x);
-    } else if (Array.isArray(a) && Array.isArray(b)) {
-      if (a.length !== b.length) {
-        throw new Error('Arrays must be of the same length for element-wise multiplication.');
-      }
-      return a.map((x, i) => x * b[i]);
-    } else {
-      throw new Error('Unsupported types for multiplication');
-    }
+  times: (w, a) => {
+    return mdfunc(x => x>0?1:x<0?-1:0, (x,y) => y*x, w, a);  
+  },
+  ceiling: (w, a) => {
+    return mdfunc(x => Math.ceil(x), (x,y) => Math.max(x, y), w, a);
+  },
+  floor: (w, a) => {
+    return mdfunc(x => Math.floor(x), (x,y) => Math.min(x, y), w, a);
+  },
+  exp: (w, a) => {
+    return mdfunc(x => Math.exp(x), (x,y) => Math.pow(y, x), w, a);
+  },
+  log: (w, a) => {
+    return mdfunc(x => Math.log(x), (x,y) => Math.log(x) / Math.log(y), w, a);
+  },
+  factorial: (w, a) => {
+    return mdfunc(x => factorial(x), (x,y) => binomial(x, y), w, a);
+  },
+  or: (w, a) => {
+    return mdfunc(x => x, (x,y) => gcd(x, y), w, a);
+  },
+  and: (w, a) => {
+    return mdfunc(x => x, (x,y) => lcm(x, y), w, a);
+  },
+  nand: (w, a) => {
+    return mdfunc(x => x, (x,y) => x===0||y===0?1:0, w, a);  
+  },
+  nor: (w, a) => {
+    return mdfunc(x => x, (x,y) => x===0&&y===0?1:0, w, a);  
   },
   iota: (n) => {
-    if (typeof n !== 'number' || n < 0) {
-      throw new Error('Iota requires a non-negative integer');
+    if (Array.isArray(n)) {
+      return fillShapeRec(n, (idx, index) => idx);
     }
-    return Array.from({ length: n }, (_, i) => i);
+    if (typeof n === 'number') {
+      return Array.from({ length: n }, (_, i) => i);
+    }
+    throw new Error('Unsupported type for iota');
+  },
+  jot: (f, g) => (w, a) => {
+    if(typeof f !== 'function') {
+      return g(f, w);
+    }
+    if(typeof g !== 'function') {
+      return f(w, g);
+    }
+    return f(g(w),a);      
   },
   reduce: ((f) => (a) => {
     if (!Array.isArray(a)) {
@@ -234,6 +512,22 @@ const G = {
       throw new Error('Reduce cannot be applied to an empty array');
     }
     return a.reduceRight(f);
+  }),
+  scan: ((f) => (a) => {
+    if (!Array.isArray(a)) {
+      throw new Error('Scan requires an array');
+    }
+    if (a.length === 0) {
+      throw new Error('Scan cannot be applied to an empty array');
+    }
+    const result = [];
+    let acc = a[0];
+    result.push(acc);
+    for (let i = 1; i < a.length; i++) {
+      acc = f(acc, a[i]);
+      result.push(acc);
+    }
+    return result;
   }),
   comma: (w, a) => {
     if (a === undefined) {
@@ -252,6 +546,55 @@ const G = {
     } else {
       return [a, w];
     }
+  },
+  transpose: (a) => {
+    return transposeRec(a);
+  },
+  squad: (w, a) => {
+    return getRec(w, a);
+  },
+  at: (f,g) => (w, a) => {
+    if(typeof f === 'function' && typeof g === 'function') {
+      return fillShapeRec(shapeRec(w), (prefix, index) => {
+        const v = at(w, prefix);
+        return g(v)==1 ? f(v, a) : v;
+      });
+    }
+    if(Array.isArray(g)) {
+      if(Array.isArray(f)) {
+        if(f.length !== g.length)
+          throw new Error('Array lengths must match');
+      } else
+        f = Array.apply(null, {length: g.length}).map(() => f);
+      const result = fillShapeRec(shapeRec(w), (prefix, index) => {
+        return at(w, prefix);
+      });
+      for(let i=0; i<g.length; i++) {
+        const idx = g[i];
+        assignRec(result, idx, f[i]);
+      }
+      return result;
+    }
+    throw new Error('Unsupported usage of at');
+  },
+  grade_up: (w) => {
+    if (!Array.isArray(w)) {
+      throw new Error('Grade up requires an array');
+    }
+    return w.map((v, i) => {return {i, v}})
+          .sort((a, b) => {return a.v > b.v ? 1 : a.v == b.v ? 0 : -1 })
+          .map((obj) => obj.i);
+  },
+  grade_down: (w) => {
+    if (!Array.isArray(w)) {
+      throw new Error('Grade down requires an array');
+    }
+    return w.map((v, i) => {return {i, v}})
+          .sort((a, b) => {return a.v < b.v ? 1 : a.v == b.v ? 0 : -1 })
+          .map((obj) => obj.i);
+  },
+  enclose: (w, a) => {
+    return [w];
   }
 };
 
@@ -345,29 +688,42 @@ const parseExpression = (expression, scope) => {
       const AB = A && B;
       const ABC = AB && C;
       const ABCD = ABC && D;
+      // if (AB && !ABC && !ABCD) {
+      //   console.log('Stack top 2:', A, B); 
+      // }
+      // if(ABC && !ABCD) {
+      //   console.log('Stack top 3:', A, B, C); 
+      // }
+      // if(ABCD) {
+      //   console.log('Stack top 4:', A, B, C, D); 
+      // }
       if (ABC && 
         A.category === '(' && 
         belong(B.category, ['V','F','D', 'M']) &&
         C.category === ')'
       ) {
-        stack.splice(size - 3, 3, { category: B.category, text: B.text });
+        //console.log('Found parentheses:', B.text);  
+        let newText = B.text;
+        stack.splice(size - 3, 3, { category: B.category, text: newText });
         foundReduction = true;
         continue;
       }
-      if (AB && 
-        A.category === 'V' && 
-        B.category === 'V'
+      if (ABC && 
+        !belong(A.category, ['V', ')']) && 
+        B.category === 'V' &&
+        C.category === 'V'
       ) {
-        let newText = '';
-        const A_brackets = countInitialBrackets(A.text);
-        const B_brackets = countInitialBrackets(B.text);
-        if(B_brackets > A_brackets) {
-          newText = `[${A.text}, ${B.text.slice(1)}`;
-        } else {
-          newText = `[${A.text}, ${B.text}]`;
+        //console.log('Found strand:',A,B,C);
+        stack.pop();
+        let newText = '[';
+        while (stack.length > 0 && stack[stack.length - 1].category === 'V') {
+          const top = stack.pop();
+          newText += top.text;
+          if(stack.length > 0 && stack[stack.length - 1].category === 'V') newText += ', ';
         }
-        stack.splice(size - 2, 2, 
-            { category: 'V', text: newText });          
+        newText += ']';
+        stack.push({ category: 'V', text: newText })
+        stack.push(A);          
         foundReduction = true;
         continue;
       }
@@ -376,6 +732,7 @@ const parseExpression = (expression, scope) => {
         B.category === 'F' &&
         C.category === 'V'
       ) {
+        //console.log('Found function application:', B.text, C.text);
         const newText = `${B.text}(${C.text})`;
         stack.splice(size - 3, 3, 
           { category: 'V', text: newText }, A);
@@ -388,6 +745,7 @@ const parseExpression = (expression, scope) => {
         C.category === 'F' &&
         D.category === 'V'
       ) {
+        //console.log('Found function application:', B.text, C.text, D.text);
         const newText = `${C.text}(${D.text})`;
         stack.splice(size - 4, 4, 
           { category: 'V', text: newText }, B, A);
@@ -395,11 +753,12 @@ const parseExpression = (expression, scope) => {
         continue;
       }
       if(ABCD &&
-        belong(A.category, ['M', 'V', 'F', '(', '←', 'Edge', ':']) &&
+        belong(A.category, ['M', /*'V',*/ 'F', '(', '←', 'Edge', ':']) &&
         B.category === 'V' &&
         C.category === 'F' &&
         D.category === 'V'
       ) {
+        //console.log('Found function application:', C.text, D.text, B.text);
         const newText = `${C.text}(${D.text}, ${B.text})`;
         stack.splice(size - 4, 4, 
           { category: 'V', text: newText }, A);
@@ -412,6 +771,7 @@ const parseExpression = (expression, scope) => {
         belong(B.category, ['F', 'V']) &&
         C.category === 'M'
       ) {
+        //console.log('Found monadic operator:', B.text, C.text);
         const newText = `(${C.text}(${B.text}))`;
         stack.splice(size - 3, 3, 
           { category: 'F', text: newText }, A);
@@ -425,6 +785,7 @@ const parseExpression = (expression, scope) => {
         C.category === 'D' &&
         belong(D.category, ['F', 'V'])
       ) {
+        //console.log('Found dyadic operator:', B.text, C.text, D.text);
         const newText = `(${C.text}(${B.text}, ${D.text}))`;
         stack.splice(size - 4, 4, 
           { category: 'F', text: newText }, A);
@@ -438,11 +799,12 @@ const parseExpression = (expression, scope) => {
         C.category === 'F' &&
         D.category === 'F'
       ) {
+        //console.log('Found train with functions:', B.text, C.text, D.text);
         let newText = '';
         if(B.category === 'V') {
-          newText = `((${_w_}, ${_a_})=> ${C.text}(${B.text}, ${D.text}(${_w_}, ${_a_})))`;
+          newText = `((${_w_}, ${_a_})=> ${C.text}(${D.text}, ${B.text}(${_w_}, ${_a_})))`;
         } else {
-          newText = `((${_w_}, ${_a_})=> ${C.text}(${B.text}(${_w_}, ${_a_}), ${D.text}(${_w_}, ${_a_})))`;     
+          newText = `((${_w_}, ${_a_})=> ${C.text}(${D.text}(${_w_}, ${_a_}), ${B.text}(${_w_}, ${_a_})))`;     
         }
         stack.splice(size - 4, 4, 
           { category: 'F', text: newText }, A);
@@ -455,6 +817,7 @@ const parseExpression = (expression, scope) => {
         B.category === 'F' &&
         C.category === 'F'
       ) {
+        //console.log('Found train:', B.text, C.text);
         const newText = `((${_w_}, ${_a_})=> ${B.text}(${C.text}(${_w_}, ${_a_})))`;
         stack.splice(size - 3, 3, 
           { category: 'F', text: newText }, A);
@@ -468,6 +831,7 @@ const parseExpression = (expression, scope) => {
         C.category === '←' &&
         belong(D.category, ['F', 'V', 'M', 'D'])
       ) {
+        //console.log('Found assignment:', B.text, D.text);
         const [categoryEntry, global] 
           = find_category(B.text, scope);
         let newText = '';
@@ -488,16 +852,18 @@ const parseExpression = (expression, scope) => {
         C.category === ':' &&
         D.category === 'V'
       ) {
-        let newText = `if(${B.text}) return ${D.text}`;
+        //console.log('Found conditional:', B.text, D.text);
+        let newText = `if(${B.text}===1) return ${D.text}`;
         stack.splice(size - 4, 4, 
           { category: 'V', text: newText }, A);
         foundReduction = true;
         continue;
       }
-            if(AB &&
+      if(AB &&
         A.text === 'G.outer' &&
         B.category === 'F'
       ) {
+        //console.log('Found outer:', B.text);
         stack.splice(size - 2, 2, A, B);
         foundReduction = true;
         continue;
@@ -533,6 +899,7 @@ const parseExpression = (expression, scope) => {
         first = false;
       }
       prefix += key;
+      if(key[0] === '[') prefix += ' = []';
     }
     if (!first) {
       resultText = `${prefix}; ${resultText}`;
@@ -577,7 +944,7 @@ const parseExpression = (expression, scope) => {
     }
     stack.push(reg);
     // Apply reduction rules greedily onto the stack frame
-    reduceStack();
+    /*if(reg.category !=='V')*/ reduceStack();
   }
   // Post-parsing structural check
   if (stack.length > 2) {
