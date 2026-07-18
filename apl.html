@@ -1,0 +1,1332 @@
+  <!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>APL.js REPL</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #080a08;
+      --grid: rgba(124, 255, 152, 0.08);
+      --glow-a: rgba(134, 240, 158, 0.08);
+      --glow-b: rgba(255, 179, 71, 0.08);
+      --bg-grad-1: #050705;
+      --bg-grad-2: #0a100b;
+      --bg-grad-3: #060806;
+      --panel: #0d120e;
+      --panel-2: #101811;
+      --panel-head-1: #0f1a11;
+      --panel-head-2: #122016;
+      --ink: #d7f7df;
+      --muted: #85a58e;
+      --accent: #86f09e;
+      --accent-2: #ffb347;
+      --danger: #ff7272;
+      --border: #1f3423;
+      --focus: #9ffab4;
+      --shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
+      --topbar-bg: rgba(5, 8, 5, 0.88);
+      --btn-bg: #121a13;
+      --btn-bg-hover: #162218;
+      --cell-bg: #0a120c;
+      --cell-head-bg: #101a12;
+      --matrix-bg: #0d1710;
+      --matrix-border: #2c4933;
+    }
+
+    :root[data-theme="amber"] {
+      --bg: #100b02;
+      --grid: rgba(255, 182, 84, 0.11);
+      --glow-a: rgba(255, 180, 84, 0.1);
+      --glow-b: rgba(255, 231, 176, 0.07);
+      --bg-grad-1: #0a0601;
+      --bg-grad-2: #130d04;
+      --bg-grad-3: #090602;
+      --panel: #151004;
+      --panel-2: #1a1204;
+      --panel-head-1: #1d1406;
+      --panel-head-2: #281b09;
+      --ink: #ffe4b0;
+      --muted: #c49a57;
+      --accent: #ffb347;
+      --accent-2: #ffe08a;
+      --border: #5b4120;
+      --focus: #ffd08b;
+      --topbar-bg: rgba(14, 10, 3, 0.9);
+      --btn-bg: #2a1c0a;
+      --btn-bg-hover: #38250d;
+      --cell-bg: #1a1306;
+      --cell-head-bg: #241909;
+      --matrix-bg: #1b1307;
+      --matrix-border: #6a4b23;
+    }
+
+    :root[data-theme="teal-crt"] {
+      --bg: #040b0c;
+      --grid: rgba(123, 255, 240, 0.1);
+      --glow-a: rgba(74, 225, 255, 0.1);
+      --glow-b: rgba(151, 255, 204, 0.07);
+      --bg-grad-1: #020707;
+      --bg-grad-2: #071114;
+      --bg-grad-3: #04090a;
+      --panel: #081315;
+      --panel-2: #0b1719;
+      --panel-head-1: #0c1c1f;
+      --panel-head-2: #102327;
+      --ink: #ccfff9;
+      --muted: #70b8b1;
+      --accent: #6ef4ff;
+      --accent-2: #8dffbf;
+      --border: #255057;
+      --focus: #9bfff8;
+      --topbar-bg: rgba(3, 10, 11, 0.9);
+      --btn-bg: #0f1e21;
+      --btn-bg-hover: #143036;
+      --cell-bg: #091719;
+      --cell-head-bg: #0d2024;
+      --matrix-bg: #0b1b1f;
+      --matrix-border: #296168;
+    }
+
+    :root[data-theme="sunset-terminal"] {
+      --bg: #120608;
+      --grid: rgba(255, 128, 110, 0.1);
+      --glow-a: rgba(255, 120, 95, 0.11);
+      --glow-b: rgba(255, 202, 95, 0.08);
+      --bg-grad-1: #0a0304;
+      --bg-grad-2: #17090c;
+      --bg-grad-3: #0b0305;
+      --panel: #180a0d;
+      --panel-2: #1f0c10;
+      --panel-head-1: #211013;
+      --panel-head-2: #2b1114;
+      --ink: #ffd3ca;
+      --muted: #ca8d7f;
+      --accent: #ff8c70;
+      --accent-2: #ffc96a;
+      --border: #5f2d31;
+      --focus: #ffb6a7;
+      --topbar-bg: rgba(16, 5, 7, 0.9);
+      --btn-bg: #281216;
+      --btn-bg-hover: #3a151a;
+      --cell-bg: #1b0c0f;
+      --cell-head-bg: #251115;
+      --matrix-bg: #1e1013;
+      --matrix-border: #6c353c;
+    }
+
+    :root[data-theme="blue-monitor"] {
+      --bg: #050913;
+      --grid: rgba(126, 161, 255, 0.11);
+      --glow-a: rgba(113, 169, 255, 0.1);
+      --glow-b: rgba(153, 225, 255, 0.06);
+      --bg-grad-1: #02050c;
+      --bg-grad-2: #071022;
+      --bg-grad-3: #040812;
+      --panel: #081123;
+      --panel-2: #0b1630;
+      --panel-head-1: #0e1b3b;
+      --panel-head-2: #112246;
+      --ink: #d5e1ff;
+      --muted: #8498c9;
+      --accent: #8fb4ff;
+      --accent-2: #9de6ff;
+      --border: #2a3e70;
+      --focus: #b2ccff;
+      --topbar-bg: rgba(4, 8, 17, 0.9);
+      --btn-bg: #101c37;
+      --btn-bg-hover: #16284f;
+      --cell-bg: #0b1530;
+      --cell-head-bg: #0f1d40;
+      --matrix-bg: #0d1b3a;
+      --matrix-border: #36538f;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+    }
+
+    body {
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 6%, var(--glow-a) 0, transparent 32%),
+        radial-gradient(circle at 92% 16%, var(--glow-b) 0, transparent 26%),
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 18px,
+          var(--grid) 18px,
+          var(--grid) 19px
+        ),
+        linear-gradient(150deg, var(--bg-grad-1) 0%, var(--bg-grad-2) 54%, var(--bg-grad-3) 100%);
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      border-bottom: 1px solid var(--border);
+      background: var(--topbar-bg);
+      backdrop-filter: blur(5px);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .title {
+      margin: 0;
+      letter-spacing: 0.05em;
+      font-size: 1rem;
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      margin: 2px 0 0;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--btn-bg);
+      color: var(--ink);
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      border-color: #2f5640;
+      background: var(--btn-bg-hover);
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 1px;
+    }
+
+    button.primary {
+      border-color: #336b43;
+      background: #1b3422;
+      color: var(--accent);
+    }
+
+    button.warn {
+      border-color: #6a4530;
+      color: var(--accent-2);
+    }
+
+    .wrap {
+      width: min(1120px, calc(100% - 20px));
+      margin: 14px auto 24px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: linear-gradient(180deg, color-mix(in oklab, var(--panel) 92%, transparent), color-mix(in oklab, var(--panel-2) 92%, transparent));
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(90deg, var(--panel-head-1) 0%, var(--panel-head-2) 100%);
+      font-size: 0.82rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    #repl {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px;
+      min-height: 55vh;
+    }
+
+    .cell {
+      border: 1px solid #203826;
+      background: var(--cell-bg);
+      border-radius: 12px;
+      overflow: hidden;
+      animation: rise 180ms ease-out;
+    }
+
+    .cell-head {
+      padding: 6px 10px;
+      border-bottom: 1px solid #1b2f20;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      color: var(--muted);
+      background: var(--cell-head-bg);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .cell-head-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .history-js-btn {
+      border: 1px solid #2f5640;
+      border-radius: 999px;
+      background: #162218;
+      color: #b8d6c0;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+    }
+
+    .history-js-btn:hover {
+      background: #1d2b1f;
+      border-color: #427156;
+    }
+
+    .history-js {
+      margin: 8px 0 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.4;
+      font-family: "Fira Code", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace;
+      font-size: 0.8rem;
+      color: #c8f0d2;
+      background: #0f1911;
+      border: 1px solid #203826;
+      border-radius: 8px;
+      padding: 8px;
+    }
+
+    .history-js.is-hidden {
+      display: none;
+    }
+
+    .cell-history .cell-head {
+      color: #6f8c76;
+    }
+
+    .cell-output .cell-head {
+      color: #9bc8a8;
+    }
+
+    .cell-error .cell-head {
+      color: var(--danger);
+    }
+
+    .cell-body {
+      padding: 10px;
+    }
+
+    .history-code {
+      margin: 0;
+      white-space: pre-wrap;
+      color: #bfe9c9;
+      line-height: 1.45;
+      font-family: "Fira Code", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace;
+      font-size: 15px;
+    }
+
+    .result-pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.45;
+      font-family: "Fira Code", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace;
+      color: #dfffe6;
+      font-size: 15px;
+    }
+
+    .matrix {
+      width: max-content;
+      border-collapse: collapse;
+      max-width: 100%;
+      display: block;
+      overflow-x: auto;
+      border: 1px solid var(--matrix-border);
+      border-radius: 8px;
+      background: var(--matrix-bg);
+    }
+
+    .theme-select {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--btn-bg);
+      color: var(--ink);
+      padding: 7px 10px;
+      font-size: 0.8rem;
+      letter-spacing: 0.01em;
+      font-family: "Fira Code", "IBM Plex Mono", "Noto Sans Mono", monospace;
+      min-width: 138px;
+    }
+
+    .theme-select:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 1px;
+    }
+
+    .matrix td {
+      border: 1px solid #213826;
+      padding: 6px 10px;
+      font-family: "Fira Code", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace;
+      font-size: 14px;
+      color: #d6f6de;
+      text-align: right;
+      min-width: 30px;
+    }
+
+    .matrix td.row-label {
+      text-align: left;
+      color: #8aac93;
+      background: #132118;
+    }
+
+    .matrix td.tensor-cell {
+      text-align: left;
+      vertical-align: top;
+      min-width: 92px;
+    }
+
+    .tensor-block {
+      width: max-content;
+      max-width: 100%;
+      margin: 4px 0;
+    }
+
+    .tensor-meta {
+      margin: 0 0 4px;
+      font-size: 0.76rem;
+      color: #8aac93;
+      font-family: "Fira Code", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace;
+    }
+
+    .tensor-inline {
+      margin: 0;
+      color: #dfffe6;
+      line-height: 1.35;
+      font-size: 0.82rem;
+      white-space: pre-wrap;
+      font-family: "Fira Code", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace;
+    }
+
+    .svg-wrap {
+      background: #f6f8f7;
+      border-radius: 10px;
+      padding: 8px;
+      width: max-content;
+      max-width: 100%;
+      overflow: auto;
+    }
+
+    .help {
+      display: none;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      background: #0f1711;
+      color: #b8d6c0;
+    }
+
+    .help.open {
+      display: block;
+    }
+
+    .help h2 {
+      margin: 0 0 8px;
+      font-size: 0.9rem;
+      color: var(--accent);
+    }
+
+    .help p {
+      margin: 0 0 8px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .help-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+      gap: 6px 12px;
+      font-family: "Fira Code", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace;
+      font-size: 0.83rem;
+    }
+
+    .hint {
+      border-top: 1px solid var(--border);
+      padding: 9px 14px;
+      color: var(--muted);
+      font-size: 0.8rem;
+      background: #0c130d;
+    }
+
+    .cm-editor {
+      font-family: "Fira Code", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace;
+      min-height: 92px;
+      border-radius: 0 0 10px 10px;
+    }
+
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 760px) {
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .toolbar {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1 class="title">APL.js REPL</h1>
+      <p class="subtitle">An APL to JavaScript transpiler.</p>
+    </div>
+    <div class="toolbar">
+      <select id="themeSelect" class="theme-select" aria-label="Theme">
+        <option value="phosphor">Phosphor Green</option>
+        <option value="amber">Amber Terminal</option>
+        <option value="teal-crt">Teal CRT</option>
+        <option value="sunset-terminal">Sunset Terminal</option>
+        <option value="blue-monitor">Blue Monitor</option>
+      </select>
+      <button id="runBtn" class="primary">Run (Shift+Enter)</button>
+      <button id="clearBtn" class="warn">Clear History</button>
+      <button id="restartBtn" class="warn">Restart Session</button>
+      <button id="helpBtn">APL Escapes</button>
+      <button id="sampleBtn">Insert Sample</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="panel">
+      <div class="panel-head">
+        <span>Session Timeline</span>
+        <span id="status">Ready.</span>
+      </div>
+      <section id="helpPanel" class="help" aria-hidden="true">
+        <h2>Escape Commands</h2>
+        <p>Type backslash plus name inside the editor to emit an APL symbol automatically.</p>
+        <div id="helpGrid" class="help-grid"></div>
+      </section>
+      <section id="repl" aria-live="polite"></section>
+      <p class="hint">Shift+Enter runs current input and creates a new cell.</p>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@svgdotjs/svg.js@3.2/dist/svg.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.15.4/beautify.min.js"></script>
+
+  <script type="module">
+    import { EditorState, Prec } from "https://esm.sh/@codemirror/state@6";
+    import { EditorView, keymap, lineNumbers } from "https://esm.sh/@codemirror/view@6";
+    import { defaultKeymap, history, historyKeymap } from "https://esm.sh/@codemirror/commands@6";
+    import { StreamLanguage } from "https://esm.sh/@codemirror/language@6";
+    import { syntaxHighlighting, HighlightStyle } from "https://esm.sh/@codemirror/language@6";
+    import { tags } from "https://esm.sh/@lezer/highlight@1";
+    import { apl } from "https://esm.sh/@codemirror/legacy-modes@6/mode/apl";
+    import { aplToJavaScript, G } from "./apl.js";
+
+    const baseAplToken = apl.token.bind(apl);
+    const aplModeNoHashComment = {
+      ...apl,
+      token(stream, state) {
+        if (stream.peek() === "#") {
+          stream.next();
+          return null;
+        }
+        return baseAplToken(stream, state);
+      }
+    };
+
+    const SAMPLE = [
+      "A←2 3⍴⍳6",
+      "A",
+      "+/A",
+      "B←A+10",
+      "⎕←B",
+      "A∘.+A"
+    ].join("\n");
+
+    const APL_ESCAPES = {
+      lamp: "⍝",
+      diamond: "⋄",
+      iota: "⍳",
+      rho: "⍴",
+      alpha: "⍺",
+      omega: "⍵",
+      quad: "⎕",
+      ualpha: "⍶",
+      uomega: "⍹",
+      times: "×",
+      divide: "÷",
+      assign: "←",
+      minus: "¯",
+      leq: "≤",
+      geq: "≥",
+      neq: "≠",
+      gradeup: "⍋",
+      gradedown: "⍒",
+      tally: "≢",
+      match: "≡",
+      transpose: "⍉",
+      compress: "/",
+      each: "¨",
+      selfie: "⍨",
+      zilde: "⍬",
+      reverse: "⌽",
+      squad: "⌷",
+      enclose: "⊂",
+      take: "↑",
+      drop: "↓",
+      power: "⍣",
+      over: "⍥",
+      and: "∧",
+      or: "∨",
+      nand: "⍲",
+      nor: "⍱",
+      not: "~",
+      left: "⊣",
+      right: "⊢",
+      jot: "∘",
+      qcolon: "⍠",
+      qquote: "⍞",
+      let: '←',
+      reduce: "⌿",
+      scan: "⍀",
+      ceil: "⌈",
+      floor: "⌊",
+      circle: "○",
+    };
+
+    const repl = document.getElementById("repl");
+    const statusEl = document.getElementById("status");
+    const helpPanel = document.getElementById("helpPanel");
+    const helpGrid = document.getElementById("helpGrid");
+    const runBtn = document.getElementById("runBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const restartBtn = document.getElementById("restartBtn");
+    const helpBtn = document.getElementById("helpBtn");
+    const sampleBtn = document.getElementById("sampleBtn");
+    const themeSelect = document.getElementById("themeSelect");
+
+    const THEME_STORAGE_KEY = "apljs-theme";
+    const THEMES = new Set(["phosphor", "amber", "teal-crt", "sunset-terminal", "blue-monitor"]);
+
+    const applyTheme = (themeName) => {
+      const name = THEMES.has(themeName) ? themeName : "phosphor";
+      document.documentElement.setAttribute("data-theme", name);
+      themeSelect.value = name;
+      localStorage.setItem(THEME_STORAGE_KEY, name);
+    };
+
+    const beautifyGeneratedJavaScript = (code) => {
+      if (typeof code !== "string") {
+        return code;
+      }
+      if (typeof window.js_beautify !== "function") {
+        return code;
+      }
+      try {
+        return window.js_beautify(code, {
+          indent_size: 2,
+          space_in_empty_paren: true,
+          max_preserve_newlines: 2
+        });
+      } catch {
+        return code;
+      }
+    };
+
+    let applyingEscape = false;
+    let cellCount = 0;
+    let active = null;
+    const inputHistory = [];
+    let historyCursor = 0;
+    let historyDraft = "";
+
+    const createRuntimeContext = () => {
+      const runtime = Object.create(G);
+      Object.defineProperty(runtime, "quad", {
+        configurable: true,
+        enumerable: true,
+        set(value) {
+          lastEmissions.push(value);
+        }
+      });
+      return runtime;
+    };
+
+    let replRuntime;
+    let lastEmissions = [];
+    replRuntime = createRuntimeContext();
+
+    const highlight = HighlightStyle.define([
+      { tag: tags.keyword, color: "#90f0b1", fontWeight: "700" },
+      { tag: [tags.operator, tags.arithmeticOperator], color: "#ffbe71", fontWeight: "700" },
+      { tag: tags.number, color: "#d8ffaa" },
+      { tag: tags.string, color: "#6fe8c9" },
+      { tag: tags.comment, color: "#6f9277", fontStyle: "italic" },
+      { tag: tags.variableName, color: "#d7f7df" }
+    ]);
+
+    const editorTheme = EditorView.theme({
+      "&": {
+        backgroundColor: "#0a120c",
+        color: "#d7f7df"
+      },
+      ".cm-content": {
+        caretColor: "#9ffab4",
+        lineHeight: "1.45"
+      },
+      ".cm-cursor, .cm-dropCursor": {
+        borderLeftColor: "#9ffab4"
+      },
+      ".cm-gutters": {
+        color: "#7fa989",
+        borderRight: "1px solid #1f3423",
+        background: "#0c140d"
+      },
+      ".cm-activeLine": {
+        backgroundColor: "rgba(134, 240, 158, 0.08)"
+      },
+      ".cm-activeLineGutter": {
+        backgroundColor: "rgba(134, 240, 158, 0.12)"
+      },
+      ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
+        backgroundColor: "rgba(159, 250, 180, 0.22)"
+      }
+    }, { dark: true });
+
+    const formatValue = (value) => {
+      if (value === undefined) {
+        return "undefined";
+      }
+      if (typeof value === "string") {
+        return value;
+      }
+      if (typeof value === "number" || typeof value === "boolean" || value === null) {
+        return String(value);
+      }
+      try {
+        return JSON.stringify(value, null, 2);
+      } catch (error) {
+        return String(value);
+      }
+    };
+
+    const isPrimitive = (v) => v === null || ["string", "number", "boolean"].includes(typeof v);
+
+    const isVector = (arr) => Array.isArray(arr) && arr.every(isPrimitive);
+
+    const isMatrix = (arr) => {
+      if (!Array.isArray(arr) || arr.length === 0) {
+        return false;
+      }
+      if (!arr.every((row) => Array.isArray(row))) {
+        return false;
+      }
+      const width = arr[0].length;
+      return arr.every((row) => row.length === width && row.every(isPrimitive));
+    };
+
+    const renderTable = (host, arr) => {
+      const table = document.createElement("table");
+      table.className = "matrix";
+      const data = isVector(arr) ? [arr] : arr;
+
+      data.forEach((row) => {
+        const tr = document.createElement("tr");
+
+        row.forEach((cell) => {
+          const td = document.createElement("td");
+          td.textContent = String(cell);
+          tr.appendChild(td);
+        });
+        table.appendChild(tr);
+      });
+
+      host.appendChild(table);
+    };
+
+    const isRectangularArray = (value) => {
+      if (!Array.isArray(value)) {
+        return true;
+      }
+      if (value.length === 0) {
+        return true;
+      }
+
+      const firstIsArray = Array.isArray(value[0]);
+      const firstLength = firstIsArray ? value[0].length : 0;
+
+      for (const item of value) {
+        if (Array.isArray(item) !== firstIsArray) {
+          return false;
+        }
+        if (firstIsArray && item.length !== firstLength) {
+          return false;
+        }
+        if (!isRectangularArray(item)) {
+          return false;
+        }
+      }
+      return true;
+    };
+
+    const getShape = (value) => {
+      const shape = [];
+      let current = value;
+      while (Array.isArray(current)) {
+        shape.push(current.length);
+        current = current[0];
+      }
+      return shape;
+    };
+
+    const renderVectorInline = (host, arr) => {
+      renderTable(host, arr);
+    };
+
+    const renderTensor = (host, value, depth = 0) => {
+      if (!Array.isArray(value) || !isRectangularArray(value) || depth > 8) {
+        return false;
+      }
+
+      const shape = getShape(value);
+      const rank = shape.length;
+
+      const block = document.createElement("div");
+      block.className = "tensor-block";
+
+      const meta = document.createElement("p");
+      meta.className = "tensor-meta";
+      meta.textContent = `shape: ${shape.join(" ")}`;
+      block.appendChild(meta);
+
+      if (rank === 1) {
+        renderVectorInline(block, value);
+        host.appendChild(block);
+        return true;
+      }
+
+      const rows = value.length;
+      const cols = value[0].length;
+      const table = document.createElement("table");
+      table.className = "matrix";
+
+      for (let i = 0; i < rows; i++) {
+        const tr = document.createElement("tr");
+
+        for (let j = 0; j < cols; j++) {
+          const td = document.createElement("td");
+
+          if (rank === 2) {
+            td.textContent = formatValue(value[i][j]);
+          } else if (rank === 3) {
+            td.className = "tensor-cell";
+            renderVectorInline(td, value[i][j]);
+          } else {
+            td.className = "tensor-cell";
+            if (!renderTensor(td, value[i][j], depth + 1)) {
+              const pre = document.createElement("pre");
+              pre.className = "tensor-inline";
+              pre.textContent = formatValue(value[i][j]);
+              td.appendChild(pre);
+            }
+          }
+
+          tr.appendChild(td);
+        }
+        table.appendChild(tr);
+      }
+
+      block.appendChild(table);
+      host.appendChild(block);
+      return true;
+    };
+
+    const appendSvgNode = (host, svgNode) => {
+      const wrap = document.createElement("div");
+      wrap.className = "svg-wrap";
+      wrap.appendChild(svgNode.cloneNode(true));
+      host.appendChild(wrap);
+      return true;
+    };
+
+    const renderSvgStringMaybe = (host, text) => {
+      if (typeof text !== "string") {
+        return false;
+      }
+      const trimmed = text.trim();
+      if (!trimmed.startsWith("<svg") || !trimmed.endsWith("</svg>")) {
+        return false;
+      }
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(trimmed, "image/svg+xml");
+      const svgNode = doc.querySelector("svg");
+      if (!svgNode) {
+        return false;
+      }
+      return appendSvgNode(host, document.importNode(svgNode, true));
+    };
+
+    const renderSvgMaybe = (host, value) => {
+      if (value && typeof value === "object") {
+        if (value.node instanceof SVGElement) {
+          const root = value.node instanceof SVGSVGElement ? value.node : value.node.ownerSVGElement;
+          if (root) {
+            return appendSvgNode(host, root);
+          }
+        }
+        if (typeof value.svg === "function") {
+          try {
+            const serialized = value.svg();
+            if (renderSvgStringMaybe(host, serialized)) {
+              return true;
+            }
+          } catch (error) {
+            // Ignore SVG serialization errors and fallback to default rendering.
+          }
+        }
+      }
+
+      return renderSvgStringMaybe(host, value);
+    };
+
+    const appendOutputCell = (kind, value) => {
+      const cell = document.createElement("article");
+      const className = kind === "error" ? "cell cell-output cell-error" : "cell cell-output";
+      cell.className = className;
+
+      const head = document.createElement("div");
+      head.className = "cell-head";
+      const label = kind === "emit" ? "Output (quad)" : kind === "error" ? "Error" : "Result";
+      head.textContent = label;
+
+      const body = document.createElement("div");
+      body.className = "cell-body";
+
+      if (Array.isArray(value) && (isVector(value) || isMatrix(value))) {
+        renderTable(body, value);
+      } else if (Array.isArray(value) && renderTensor(body, value)) {
+      } else if (!renderSvgMaybe(body, value)) {
+        const pre = document.createElement("pre");
+        pre.className = "result-pre";
+        pre.textContent = formatValue(value);
+        body.appendChild(pre);
+      }
+
+      cell.appendChild(head);
+      cell.appendChild(body);
+      repl.appendChild(cell);
+      cell.scrollIntoView({ behavior: "smooth", block: "end" });
+    };
+
+    const finalizeActiveInputAsHistory = (codeText, jsText) => {
+      const oldCell = active && active.cell;
+      if (!oldCell) {
+        return;
+      }
+
+      active.editor.destroy();
+
+      oldCell.className = "cell cell-history";
+      oldCell.innerHTML = "";
+
+      const head = document.createElement("div");
+      head.className = "cell-head";
+
+      const title = document.createElement("span");
+      title.textContent = `Input #${cellCount}`;
+
+      const actions = document.createElement("div");
+      actions.className = "cell-head-actions";
+
+      const jsButton = document.createElement("button");
+      jsButton.className = "history-js-btn";
+      jsButton.type = "button";
+      jsButton.textContent = "JS";
+
+      const body = document.createElement("div");
+      body.className = "cell-body";
+      const pre = document.createElement("pre");
+      pre.className = "history-code";
+      pre.textContent = codeText;
+      body.appendChild(pre);
+
+      const jsPre = document.createElement("pre");
+      jsPre.className = "history-js is-hidden";
+      jsPre.textContent = jsText || "JavaScript unavailable due to transpilation error.";
+
+      if (!jsText) {
+        jsButton.disabled = true;
+        jsButton.title = "No JavaScript generated";
+      } else {
+        jsButton.addEventListener("click", () => {
+          jsPre.classList.toggle("is-hidden");
+        });
+      }
+
+      actions.appendChild(jsButton);
+      head.appendChild(title);
+      head.appendChild(actions);
+      body.appendChild(jsPre);
+
+      oldCell.appendChild(head);
+      oldCell.appendChild(body);
+      active = null;
+    };
+
+    const expandEscapeAtCursor = (view) => {
+      if (applyingEscape) {
+        return false;
+      }
+      const head = view.state.selection.main.head;
+      const start = Math.max(0, head - 40);
+      const prefix = view.state.doc.sliceString(start, head);
+      const match = prefix.match(/\\([a-z][a-z0-9_]*)$/i);
+      if (!match) {
+        return false;
+      }
+      const replacement = APL_ESCAPES[match[1].toLowerCase()];
+      if (!replacement) {
+        return false;
+      }
+      applyingEscape = true;
+      view.dispatch({
+        changes: {
+          from: head - match[0].length,
+          to: head,
+          insert: replacement
+        }
+      });
+      applyingEscape = false;
+      return true;
+    };
+
+    const runCurrentCell = () => {
+      if (!active || !active.editor) {
+        return true;
+      }
+
+      const source = active.editor.state.doc.toString().trimEnd();
+      if (!source.trim()) {
+        setStatus("Type APL code before running.");
+        return true;
+      }
+
+      let jsCode = null;
+      let jsCodeFormatted = null;
+      let transpileError = null;
+      try {
+        jsCode = aplToJavaScript(source);
+        jsCodeFormatted = beautifyGeneratedJavaScript(jsCode);
+      } catch (error) {
+        transpileError = error;
+      }
+
+      inputHistory.push(source);
+      historyCursor = inputHistory.length;
+      historyDraft = "";
+
+      cellCount += 1;
+      finalizeActiveInputAsHistory(source, jsCodeFormatted ?? jsCode);
+
+      if (transpileError) {
+        appendOutputCell("error", transpileError instanceof Error ? transpileError.message : String(transpileError));
+        setStatus("Execution failed.");
+        createInputCell();
+        return true;
+      }
+
+      try {
+        lastEmissions = [];
+        const fn = new Function("G", jsCode);
+        const result = fn(replRuntime);
+
+        lastEmissions.forEach((item) => appendOutputCell("emit", item));
+        if (result !== undefined) {
+          appendOutputCell("result", result);
+        }
+
+        setStatus(`Executed input #${cellCount}.`);
+      } catch (error) {
+        appendOutputCell("error", error instanceof Error ? error.message : String(error));
+        setStatus("Execution failed.");
+      }
+
+      createInputCell();
+      return true;
+    };
+
+    const setStatus = (text) => {
+      statusEl.textContent = text;
+    };
+
+    const replaceEditorText = (view, text) => {
+      view.dispatch({
+        changes: {
+          from: 0,
+          to: view.state.doc.length,
+          insert: text
+        },
+        selection: { anchor: text.length }
+      });
+    };
+
+    const canUseHistoryNavigation = (view, direction) => {
+      const sel = view.state.selection.main;
+      if (!sel.empty) {
+        return false;
+      }
+      const line = view.state.doc.lineAt(sel.head);
+      if (direction === "up") {
+        return line.number === 1;
+      }
+      return line.number === view.state.doc.lines;
+    };
+
+    const navigateHistory = (view, direction) => {
+      if (inputHistory.length === 0) {
+        return false;
+      }
+      if (!canUseHistoryNavigation(view, direction)) {
+        return false;
+      }
+
+      const current = view.state.doc.toString();
+      if (historyCursor === inputHistory.length) {
+        historyDraft = current;
+      }
+
+      if (direction === "up") {
+        if (historyCursor === 0) {
+          return true;
+        }
+        historyCursor -= 1;
+        replaceEditorText(view, inputHistory[historyCursor]);
+        setStatus(`History ${historyCursor + 1}/${inputHistory.length}`);
+        return true;
+      }
+
+      if (historyCursor < inputHistory.length - 1) {
+        historyCursor += 1;
+        replaceEditorText(view, inputHistory[historyCursor]);
+        setStatus(`History ${historyCursor + 1}/${inputHistory.length}`);
+        return true;
+      }
+
+      if (historyCursor === inputHistory.length - 1) {
+        historyCursor = inputHistory.length;
+        replaceEditorText(view, historyDraft);
+        setStatus("Back to current input.");
+        return true;
+      }
+
+      return false;
+    };
+
+    const createInputCell = (initialText = "") => {
+      const cell = document.createElement("article");
+      cell.className = "cell cell-input";
+
+      const head = document.createElement("div");
+      head.className = "cell-head";
+      head.textContent = "Input";
+
+      const body = document.createElement("div");
+      body.className = "cell-body";
+
+      const mount = document.createElement("div");
+      body.appendChild(mount);
+
+      cell.appendChild(head);
+      cell.appendChild(body);
+      repl.appendChild(cell);
+
+      const editor = new EditorView({
+        parent: mount,
+        state: EditorState.create({
+          doc: initialText,
+          extensions: [
+            lineNumbers(),
+            history(),
+            Prec.highest(keymap.of([
+              {
+                key: "Shift-Enter",
+                run: runCurrentCell
+              },
+              {
+                key: "Ctrl-Enter",
+                run: runCurrentCell
+              },
+              {
+                key: "Mod-Enter",
+                run: runCurrentCell
+              },
+              {
+                key: "ArrowUp",
+                run: (view) => navigateHistory(view, "up")
+              },
+              {
+                key: "ArrowDown",
+                run: (view) => navigateHistory(view, "down")
+              }
+            ])),
+            keymap.of([
+              ...defaultKeymap,
+              ...historyKeymap
+            ]),
+            StreamLanguage.define(aplModeNoHashComment),
+            syntaxHighlighting(highlight),
+            editorTheme,
+            EditorView.updateListener.of((update) => {
+              if (update.docChanged) {
+                expandEscapeAtCursor(update.view);
+              }
+            })
+          ]
+        })
+      });
+
+      active = { cell, editor };
+      historyCursor = inputHistory.length;
+      historyDraft = initialText;
+      requestAnimationFrame(() => editor.focus());
+      cell.scrollIntoView({ behavior: "smooth", block: "end" });
+    };
+
+    const clearHistory = () => {
+      if (active && active.editor) {
+        active.editor.destroy();
+      }
+      repl.innerHTML = "";
+      cellCount = 0;
+      active = null;
+      lastEmissions = [];
+      historyCursor = inputHistory.length;
+      historyDraft = "";
+
+      createInputCell();
+      setStatus("History cells cleared. Session state preserved.");
+    };
+
+    const restartSession = () => {
+      if (active && active.editor) {
+        active.editor.destroy();
+      }
+      repl.innerHTML = "";
+      cellCount = 0;
+      active = null;
+      lastEmissions = [];
+      inputHistory.length = 0;
+      historyCursor = 0;
+      historyDraft = "";
+      replRuntime = createRuntimeContext();
+
+      createInputCell();
+      setStatus("Session restarted. Runtime and history reset.");
+    };
+
+    const buildHelp = () => {
+      const entries = Object.entries(APL_ESCAPES).sort((a, b) => a[0].localeCompare(b[0]));
+      helpGrid.innerHTML = "";
+      entries.forEach(([name, symbol]) => {
+        const row = document.createElement("div");
+        row.textContent = `\\${name} -> ${symbol}`;
+        helpGrid.appendChild(row);
+      });
+    };
+
+    runBtn.addEventListener("click", () => runCurrentCell());
+
+    clearBtn.addEventListener("click", () => {
+      clearHistory();
+    });
+
+    restartBtn.addEventListener("click", () => {
+      restartSession();
+    });
+
+    helpBtn.addEventListener("click", () => {
+      const open = !helpPanel.classList.contains("open");
+      helpPanel.classList.toggle("open", open);
+      helpPanel.setAttribute("aria-hidden", String(!open));
+    });
+
+    sampleBtn.addEventListener("click", () => {
+      if (!active || !active.editor) {
+        createInputCell(SAMPLE);
+        return;
+      }
+      active.editor.dispatch({
+        changes: {
+          from: 0,
+          to: active.editor.state.doc.length,
+          insert: SAMPLE
+        }
+      });
+      active.editor.focus();
+      setStatus("Sample inserted in the current input cell.");
+    });
+
+    themeSelect.addEventListener("change", () => {
+      applyTheme(themeSelect.value);
+    });
+
+    applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || "phosphor");
+
+    buildHelp();
+    createInputCell();
+  </script>
+</body>
+</html>

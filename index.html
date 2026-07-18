@@ -229,6 +229,18 @@
     import { tags } from "https://esm.sh/@lezer/highlight@1";
     import { aplToJavaScript, evaluateApl } from "./apl.js";
 
+    const baseAplToken = apl.token.bind(apl);
+    const aplModeNoHashComment = {
+      ...apl,
+      token(stream, state) {
+        if (stream.peek() === "#") {
+          stream.next();
+          return null;
+        }
+        return baseAplToken(stream, state);
+      },
+    };
+
     const SAMPLE_APL =` 
 pow←{             ⍝ power operator: apply ⍹ times
   ⍹=0:⍵           ⍝ ⍹ is 0: finished
@@ -259,8 +271,8 @@ incr←{1+⍵}        ⍝ define an increment function
       neq: "≠",
       gradeup: "⍋",
       gradedown: "⍒",
-      reduce: "/",
-      scan: "\\",
+      reduce: "⌿",
+      scan: "⍀",
       ass: "←",
       ceil: "⌈",
       floor: "⌊",
@@ -286,7 +298,14 @@ incr←{1+⍵}        ⍝ define an increment function
       compress: '⌿',
       transpose: '⍉',
       squad: '⌷',
-      enclose: '⊂'
+      enclose: '⊂',
+      take: '↑',
+      drop: '↓',
+      power: '⍣',
+      over: '⍥',
+      let: '←',
+      qcolon: '⍠',
+      qquote: '⍞',
     };
 
     let applyingEscape = false;
@@ -361,7 +380,7 @@ incr←{1+⍵}        ⍝ define an increment function
       state: EditorState.create({
         doc: SAMPLE_APL,
         extensions: [
-          StreamLanguage.define(apl),
+          StreamLanguage.define(aplModeNoHashComment),
           editorDarkTheme,
           syntaxHighlighting(aplHighlightTheme),
           lineNumbers(),

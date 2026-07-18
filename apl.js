@@ -8,6 +8,7 @@ const tokenizer = (text) => {
     { regex: /^\s+/, type: 'WHITESPACE' },
     { regex: /^[¯]?\d+(\.\d+)?/u, type: 'NUMBER' },
     { regex: /^'[^'\\]*(?:\\.[^'\\]*)*'/, type: 'STRING' },
+    { regex: /^#[0-9\p{L}\-]+/u, type: 'STRING' },
     { regex: /^\(/, type: 'PAREN_OPEN' },
     { regex: /^\)/, type: 'PAREN_CLOSE' },
     { regex: /^\{/, type: 'BRACE_OPEN' },
@@ -27,7 +28,13 @@ const tokenizer = (text) => {
       const match = text.slice(cursor).match(spec.regex);
       if (match) {
         if (spec.type !== 'WHITESPACE' && spec.type !== 'COMMENT') {
-          tokens.push({ type: spec.type, value: match[0] });
+          if(spec.type === 'STRING' && match[0].startsWith('#')) {
+            console.log('String with # prefix detected:', match[0]);
+            const strContent = "'"+match[0].slice(1)+"'";
+            tokens.push({ type: spec.type, value: strContent });
+          } else {
+            tokens.push({ type: spec.type, value: match[0] });
+          }
         }
         cursor += match[0].length;
         matched = true;
@@ -56,9 +63,9 @@ const global_category = {
   '≥': { category:'F', name: 'greater_than_or_equal' },
   '|': { category:'F', name: 'residue' },
   '⍴': { category:'F', name: 'rho' },
-  '/': { category:'M', name: 'reduce' },
-  '⌿': { category:'F', name: 'compress' },
-  '\\': { category:'M', name: 'scan' },
+  '/': { category:'F', name: 'compress' },
+  '⌿': { category:'M', name: 'reduce' },
+  '⍀': { category:'M', name: 'scan' },
   '⍨': { category:'M', name: 'selfie' },
   ',': { category:'F', name: 'comma' },
   '⍪': { category:'F', name: 'double_comma' },
@@ -97,7 +104,13 @@ const global_category = {
   '⍉': { category:'F', name: 'transpose' },
   '⌷': { category:'F', name: 'squad' },
   '⊂': { category:'F', name: 'enclose' },
-  '@': { category:'D', name: 'at' }
+  '@': { category:'D', name: 'at' },
+  '↑': { category:'F', name: 'take' },
+  '↓': { category:'F', name: 'drop' },
+  '⍣': { category:'D', name: 'power' },
+  '⍥': { category:'D', name: 'over' },
+  '⍠': { category:'F', name: 'qcolon' },
+  '⍞': { category:'F', name: 'qquote' }
 }
 
 const _a_ = global_category['⍺'].name;
@@ -170,7 +183,7 @@ const factorial = (n) => {
 
 const binomial = (n, k) => {
   if (k < 0 || k > n) {
-    throw new Error('Invalid values for binomial coefficient');
+    return 0;
   }
   return factorial(n) / (factorial(k) * factorial(n - k));
 };
@@ -299,6 +312,31 @@ const getRec = (arr, idx) => {
 };
   
 const G = {
+  qcolon: (w, a) => {
+    if (a===undefined) {
+      return eval(w);
+    }
+    for(let i=0;i<w.length;i++) {
+      const cmd = w[i];
+      a=a[cmd[0]](...cmd.slice(1));
+    }
+    return a;
+  },
+  qquote: (w, a) => {
+    if(a === undefined) {      
+      const result = {};
+      for(let i=0;i<w.length;i++) {
+        const cmd = w[i];
+        if(cmd.length === 2) {
+          result[cmd[0]] = cmd[1];
+        } else {
+          result[cmd[0]] = cmd.slice(1);
+        }
+      }
+      return result;
+    }
+    return a[w];
+  },
   zilde: [],
   set quad(value) {
     console.log('⎕:', value);
@@ -315,6 +353,29 @@ const G = {
       return f(w, a);
     }
   },
+  power: (f, g)=>(w, a) => {
+    if (typeof f !== 'function') {
+      throw new Error('Power requires a function');
+    }
+    if (typeof g === 'number') {
+      let result = w;
+      for (let i = 0; i < g; i++) {
+        result = f(result, a);
+      }
+      return result;
+    }
+    if (typeof g === 'function') {
+      let result = w;
+      let newResult;
+      let iterations = 100000; // Prevent infinite loops
+      while (g(result, newResult=f(result, a)) === 0 && iterations > 0) {
+        result = newResult;
+        iterations--;
+      }
+      return result;
+    }
+    throw new Error('Power requires a function or a number');
+  },
   reverse: (w) => {
     if (Array.isArray(w)) {
       return w.slice().reverse();
@@ -327,7 +388,13 @@ const G = {
   selfie: (f)=>(w, a) => {
     if(typeof f !== 'function')
       return f;
-    return f(a,w);
+    if (a===undefined) {
+      return f(w, w);
+    }
+    return f(a, w);
+  },
+  over: (f,g)=>(w, a) => {
+    return f(g(w), a!==undefined ? g(a) : a);
   },
   rho: (w, a) => {
     if (a===undefined) {
@@ -422,7 +489,7 @@ const G = {
       const ridx = prefix.slice(sa.length - 1);
       const left = at(a, lidx);
       const right = at(w, ridx);
-      const result = ww(left, right);
+      const result = ww(right, left);
       return result.reduceRight(aa);      
     });
   },
@@ -595,6 +662,60 @@ const G = {
   },
   enclose: (w, a) => {
     return [w];
+  },
+  take: (w, a) => {
+    if (!Array.isArray(w)) {
+      throw new Error('Take requires an array');
+    }
+    if (typeof a === 'number') {
+      a = [a];
+    }
+    const shape = shapeRec(w);
+    const resultShape = shape.slice();
+    if (a.length > resultShape.length) {
+      throw new Error('Take shape has more dimensions than the array');
+    }
+    for (let i = 0; i < a.length; i++) {
+      resultShape[i] = Math.abs(a[i]);
+    }
+    const result = fillShapeRec(resultShape, (prefix, index) => {
+      const idx = prefix.slice();
+      for (let i = 0; i < a.length; i++) {
+        idx[i] = a[i] < 0 ? prefix[i] + shape[i]+a[i] : prefix[i];
+        if (idx[i] >= shape[i] || idx[i] < 0) {
+          return 0;
+        }
+      }
+      return at(w, idx);
+    });
+    return result;
+  },
+  drop: (w, a) => {
+    if (!Array.isArray(w)) {
+      throw new Error('Drop requires an array');
+    }
+    if (typeof a === 'number') {
+      a = [a];
+    }
+    const shape = shapeRec(w);
+    const resultShape = shape.slice();
+    if (a.length > resultShape.length) {
+      throw new Error('Drop shape has more dimensions than the array');
+    }
+    for (let i = 0; i < a.length; i++) {
+      resultShape[i] = Math.max(0, shape[i] - Math.abs(a[i]));
+    }
+    const result = fillShapeRec(resultShape, (prefix, index) => {
+      const idx = prefix.slice();
+      for (let i = 0; i < a.length; i++) {
+        idx[i] = a[i] < 0 ? prefix[i] : prefix[i] + a[i];
+        if (idx[i] >= shape[i] || idx[i] < 0) {
+          return 0;
+        }
+      }
+      return at(w, idx);
+    });
+    return result;
   }
 };
 
@@ -779,9 +900,13 @@ const parseExpression = (expression, scope) => {
         continue;
       }
       if(ABCD &&
-        belong(A.category, 
+        (((belong(A.category, 
+          ['M', 'F', '(', '←', 'Edge', ':']) &&
+        (B.category ===  'V')) )||
+        ((belong(A.category, 
           ['M', 'V', 'F', '(', '←', 'Edge', ':']) &&
-        belong(B.category, ['F', 'V']) &&
+        (B.category === 'F')) ))
+        &&
         C.category === 'D' &&
         belong(D.category, ['F', 'V'])
       ) {
@@ -980,6 +1105,15 @@ const evaluateApl = (text, runtime = G) => {
   return executor(Object.create(runtime));
 };
 
+const AplJS = () => {
+  const context = Object.create(G);
+  return (text) => {
+    const generatedCode = aplToJavaScript(text);
+    const executor = new Function('G', generatedCode);
+    return executor(context);
+  };
+}
+
 export {
   tokenizer,
   breakExpressions,
@@ -989,4 +1123,5 @@ export {
   evaluateApl,
   G,
   global_category,
+  AplJS
 };
