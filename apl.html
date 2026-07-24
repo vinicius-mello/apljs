@@ -316,7 +316,23 @@
       cursor: pointer;
     }
 
+    .history-copy-btn {
+      border: 1px solid #2f5640;
+      border-radius: 999px;
+      background: #162218;
+      color: #b8d6c0;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+    }
+
     .history-js-btn:hover {
+      background: #1d2b1f;
+      border-color: #427156;
+    }
+
+    .history-copy-btn:hover {
       background: #1d2b1f;
       border-color: #427156;
     }
@@ -501,6 +517,14 @@
       border-radius: 0 0 10px 10px;
     }
 
+    .cm-editor .cm-content {
+      min-height: calc(4 * 1.45em);
+    }
+
+    .cm-editor .cm-scroller {
+      min-height: calc(4 * 1.45em);
+    }
+
     @keyframes rise {
       from {
         opacity: 0;
@@ -573,7 +597,7 @@
     import { syntaxHighlighting, HighlightStyle } from "https://esm.sh/@codemirror/language@6";
     import { tags } from "https://esm.sh/@lezer/highlight@1";
     import { apl } from "https://esm.sh/@codemirror/legacy-modes@6/mode/apl";
-    import { aplToJavaScript, G } from "./apl.js";
+    import { aplToJavaScript, G, global_category } from "./apl.js";
 
     const baseAplToken = apl.token.bind(apl);
     const aplModeNoHashComment = {
@@ -600,6 +624,7 @@
       lamp: "⍝",
       diamond: "⋄",
       iota: "⍳",
+      uiota: "⍸",
       rho: "⍴",
       alpha: "⍺",
       omega: "⍵",
@@ -625,6 +650,7 @@
       reverse: "⌽",
       squad: "⌷",
       enclose: "⊂",
+      first: "⊃",
       take: "↑",
       drop: "↓",
       power: "⍣",
@@ -645,6 +671,9 @@
       ceil: "⌈",
       floor: "⌊",
       circle: "○",
+      goto: "→",
+      encode: "⊤",
+      decode: "⊥",
     };
 
     const repl = document.getElementById("repl");
@@ -706,8 +735,10 @@
     };
 
     let replRuntime;
+    let replCategories;
     let lastEmissions = [];
     replRuntime = createRuntimeContext();
+    replCategories = { ...global_category };
 
     const highlight = HighlightStyle.define([
       { tag: tags.keyword, color: "#90f0b1", fontWeight: "700" },
@@ -955,7 +986,12 @@
       const body = document.createElement("div");
       body.className = "cell-body";
 
-      if (Array.isArray(value) && (isVector(value) || isMatrix(value))) {
+      if (Array.isArray(value) && value.length === 0) {
+        const pre = document.createElement("pre");
+        pre.className = "result-pre";
+        pre.textContent = "⍬";
+        body.appendChild(pre);
+      } else if (Array.isArray(value) && (isVector(value) || isMatrix(value))) {
         renderTable(body, value);
       } else if (Array.isArray(value) && renderTensor(body, value)) {
       } else if (!renderSvgMaybe(body, value)) {
@@ -977,6 +1013,11 @@
         return;
       }
 
+      if (oldCell._focusEditorHandler) {
+        oldCell.removeEventListener("mousedown", oldCell._focusEditorHandler);
+        oldCell._focusEditorHandler = null;
+      }
+
       active.editor.destroy();
 
       oldCell.className = "cell cell-history";
@@ -995,6 +1036,13 @@
       jsButton.className = "history-js-btn";
       jsButton.type = "button";
       jsButton.textContent = "JS";
+
+      const copyButton = document.createElement("button");
+      copyButton.className = "history-copy-btn";
+      copyButton.type = "button";
+      copyButton.textContent = "📋";
+      copyButton.setAttribute("aria-label", "Copy input");
+      copyButton.title = "Copy input";
 
       const body = document.createElement("div");
       body.className = "cell-body";
@@ -1016,7 +1064,30 @@
         });
       }
 
+      copyButton.addEventListener("click", async () => {
+        const textToCopy = codeText || "";
+        try {
+          if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+            await navigator.clipboard.writeText(textToCopy);
+          } else {
+            const textarea = document.createElement("textarea");
+            textarea.value = textToCopy;
+            textarea.setAttribute("readonly", "");
+            textarea.style.position = "fixed";
+            textarea.style.opacity = "0";
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textarea);
+          }
+          setStatus(`Copied Input #${cellCount} to clipboard.`);
+        } catch (error) {
+          setStatus("Clipboard copy failed.");
+        }
+      });
+
       actions.appendChild(jsButton);
+      actions.appendChild(copyButton);
       head.appendChild(title);
       head.appendChild(actions);
       body.appendChild(jsPre);
@@ -1068,7 +1139,7 @@
       let jsCodeFormatted = null;
       let transpileError = null;
       try {
-        jsCode = aplToJavaScript(source);
+        jsCode = aplToJavaScript(source, replCategories);
         jsCodeFormatted = beautifyGeneratedJavaScript(jsCode);
       } catch (error) {
         transpileError = error;
@@ -1175,7 +1246,7 @@
       return false;
     };
 
-    const createInputCell = (initialText = "") => {
+    const createInputCell = (initialText = "\n\n\n") => {
       const cell = document.createElement("article");
       cell.className = "cell cell-input";
 
@@ -1238,6 +1309,20 @@
         })
       });
 
+      const focusEditorHandler = (event) => {
+        if (event.target instanceof Element && event.target.closest("button")) {
+          return;
+        }
+        if (!(event.target instanceof Element && event.target.closest(".cm-editor"))) {
+          event.preventDefault();
+        }
+        editor.contentDOM.focus();
+        editor.focus();
+      };
+
+      cell.addEventListener("mousedown", focusEditorHandler);
+      cell._focusEditorHandler = focusEditorHandler;
+
       active = { cell, editor };
       historyCursor = inputHistory.length;
       historyDraft = initialText;
@@ -1272,6 +1357,7 @@
       historyCursor = 0;
       historyDraft = "";
       replRuntime = createRuntimeContext();
+      replCategories = { ...global_category };
 
       createInputCell();
       setStatus("Session restarted. Runtime and history reset.");

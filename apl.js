@@ -28,8 +28,11 @@ const tokenizer = (text) => {
       const match = text.slice(cursor).match(spec.regex);
       if (match) {
         if (spec.type !== 'WHITESPACE' && spec.type !== 'COMMENT') {
-          if(spec.type === 'STRING' && match[0].startsWith('#')) {
-            console.log('String with # prefix detected:', match[0]);
+          if(spec.type === 'SYMBOL' && match[0] === '∘.') {
+            tokens.push({ type: 'SYMBOL', value: '→' });
+            tokens.push({ type: 'SYMBOL', value: '.' });
+          } else if(spec.type === 'STRING' && match[0].startsWith('#')) {
+            //console.log('String with # prefix detected:', match[0]);
             const strContent = "'"+match[0].slice(1)+"'";
             tokens.push({ type: spec.type, value: strContent });
           } else {
@@ -70,6 +73,7 @@ const global_category = {
   ',': { category:'F', name: 'comma' },
   '⍪': { category:'F', name: 'double_comma' },
   '⍳': { category:'F', name: 'iota' },
+  '⍸': { category:'F', name: 'iota_index' },
   '⍋': { category:'F', name: 'grade_up' },
   '⍒': { category:'F', name: 'grade_down' },
   '⍣': { category:'D', name: 'power' },
@@ -86,7 +90,6 @@ const global_category = {
   '⊢': { category:'F', name: 'right' },
   '⊣': { category:'F', name: 'left' },
   '.': { category:'D', name: 'dot' },
-  '∘.': { category:'M', name: 'outer' },
   '∘': { category:'D', name: 'jot' },
   '⍬': { category:'V', name: 'zilde' },
   '⌽': { category:'F', name: 'reverse' },
@@ -104,13 +107,18 @@ const global_category = {
   '⍉': { category:'F', name: 'transpose' },
   '⌷': { category:'F', name: 'squad' },
   '⊂': { category:'F', name: 'enclose' },
+  '⊃': { category:'F', name: 'pick' },
   '@': { category:'D', name: 'at' },
   '↑': { category:'F', name: 'take' },
   '↓': { category:'F', name: 'drop' },
   '⍣': { category:'D', name: 'power' },
   '⍥': { category:'D', name: 'over' },
   '⍠': { category:'F', name: 'qcolon' },
-  '⍞': { category:'F', name: 'qquote' }
+  '⍞': { category:'F', name: 'qquote' },
+  '→': { category:'F', name: 'emptyFunc' },
+  '○': { category:'F', name: 'circle' },
+  '⊤': { category:'F', name: 'encode' },
+  '⊥': { category:'F', name: 'decode' },
 }
 
 const _a_ = global_category['⍺'].name;
@@ -167,6 +175,8 @@ const matchRec = (w, a) => {
   return 0;
 };
 
+const mod = (w,a) => w-a*Math.floor(w/(a+((0===a)?1:0)));
+
 const factorial = (n) => {
   if (n < 0) {
     throw new Error('Factorial is not defined for negative numbers');
@@ -189,17 +199,45 @@ const binomial = (n, k) => {
 };
 
 const gcd = (a, b) => {
-  if (b === 0) {
-    return a;
-  }
-  return gcd(b, a % b);
+  const gcdRec = (a, b) => {
+    if (b === 0) {
+      return a;
+    }
+    return gcdRec(b, a % b);
+  };
+  return Math.abs(gcdRec(a, b));
 };
 
 const lcm = (a, b) => {
   if (a === 0 || b === 0) {
     return 0;
   }
-  return Math.abs(a * b) / gcd(a, b);
+  return a * b / gcd(a, b);
+};
+
+const encode = (w, a) => {
+  const result = a.slice();
+  for (let i = a.length-1; i >= 0; i--) {
+    const ai = a[i];
+    result[i] = mod(w, ai);
+    w = ai === 0 ? 0 : Math.floor(w / ai);
+  }
+  return result;
+};
+
+const decode = (w, a) => {
+  if(typeof a === 'number') {
+    a = Array.from({ length: w.length }, () => a);
+  } else if (Array.isArray(a) && a.length === 1) {
+    a = Array.from({ length: w.length }, () => a[0]);
+  }
+  let result = w[w.length-1];
+  let multiplier = a[a.length-1];
+  for (let i = a.length-2; i >= 0; i--) {
+    result += multiplier * w[i];
+    multiplier *= a[i];
+  }
+  return result;
 };
 
 const drel = (f, w, a) => {
@@ -232,24 +270,25 @@ const drel = (f, w, a) => {
   throw new Error('Unsupported types for comparison');
 }
 
-const transposeRec = (a) => {
-  if (!Array.isArray(a) || !Array.isArray(a[0])) {  
-    return a;
-  }
-  const result = [];
-  const rows = a.length;
-  for(let i=0; i<a[0].length; i++) {
-    const newRow = transposeRec(a.map(row => row[i]));
-    result.push(newRow);
-  }
-  return result;
-};
-
 const shapeRec = (arr) => {
+  const equalShape = (a, b) => {
+    if(a.length !== b.length) 
+      return false;
+    for(let i=0; i<a.length; i++) {
+      if(a[i] !== b[i]) 
+        return false;
+    }
+    return true;
+  }
   if(!Array.isArray(arr)) {
     return [];
   }
   const shape = shapeRec(arr[0]);
+  for(let i=1; i<arr.length; i++) {
+    if(!equalShape(shape, shapeRec(arr[i]))) {
+      return [arr.length];
+    }
+  }
   shape.splice(0,0,arr.length);
   return shape;      
 }
@@ -266,6 +305,19 @@ const fillShapeRec = (shape0, fillFunc) => {
       result.push(subArray);
     }
     return result;
+  };
+  return fshape([], shape0);
+};
+
+const traverseShapeRec = (shape0, fillFunc) => {
+  let index = 0;
+  const fshape = (prefix, cellshape) => {
+    if (cellshape.length === 0)
+      return fillFunc(prefix, index++);  
+    let sl = cellshape.slice(1);
+    for (let i = 0; i < cellshape[0]; i++) {
+      fshape(prefix.concat(i), sl);
+    }
   };
   return fshape([], shape0);
 };
@@ -310,7 +362,68 @@ const getRec = (arr, idx) => {
   }
   return result;
 };
-  
+
+const transposeRec = (a) => {
+  if (!Array.isArray(a) || !Array.isArray(a[0])) {  
+    return a;
+  }
+  const result = [];
+  for(let i=0; i<a[0].length; i++) {
+    const newRow = transposeRec(a.map(row => row[i]));
+    result.push(newRow);
+  }
+  return result;
+};
+
+const itransposeRec = (a) => {
+  if (!Array.isArray(a) || !Array.isArray(a[0])) {  
+    return a;
+  }
+  a = a.map(row => itransposeRec(row));
+  const result = [];
+  for(let i=0; i<a[0].length; i++) {
+    const newRow = a.map(row => row[i]);
+    result.push(newRow);
+  }
+  return result;
+};
+
+const transpose = (a) => {
+  if (!Array.isArray(a) || !Array.isArray(a[0])) {  
+    return a;
+  }
+  const shape = shapeRec(a).reverse();
+  return fillShapeRec(shape, 
+    (prefix) => at(a, prefix.reverse()));
+}
+
+const invertPermutation = (perm) => {
+  const inverse = new Array(perm.length);  
+  for (let i = 0; i < perm.length; i++) {
+    inverse[perm[i]] = i;
+  }
+  return inverse;
+}
+
+const permute = (a, p) => {
+  if (!Array.isArray(a) || !Array.isArray(a[0])) {  
+    return a;
+  }
+  if (!Array.isArray(p)) {
+    throw new Error('Permutation must be an array');
+  }
+  const shape = shapeRec(a);
+  if (p.length !== shape.length) {
+    throw new Error('Permutation length must match the array rank');
+  }
+  const newShape = p.map(i => shape[i]);
+  const ip = invertPermutation(p);
+  return fillShapeRec(newShape, 
+    (prefix) => {
+      return at(a, ip.map(i => prefix[i]));
+    });
+}
+
 const G = {
   qcolon: (w, a) => {
     if (a===undefined) {
@@ -338,8 +451,10 @@ const G = {
     return a[w];
   },
   zilde: [],
+  emptyFunc: (w, a) => [],
   set quad(value) {
     console.log('⎕:', value);
+    return value;
   },
   right: (w) => w,
   left: (w,a) => (a===undefined?w:a),
@@ -419,7 +534,9 @@ const G = {
     if (Array.isArray(w)||typeof w === 'string') {
       return w.length;
     } else {
-      throw new Error('Unsupported type for tally');
+      return 1; 
+      // console.log('tally:', w, typeof w);
+      // throw new Error(`Unsupported type for tally ${typeof w}`);
     }
   }, 
   compress: (w, a) => {
@@ -458,6 +575,102 @@ const G = {
         throw new Error('Unsupported types for deal');
       }
     }
+  },
+  circle: (w, a) => {
+    if(a===undefined) {
+      if (typeof w === 'number') {
+        return Math.PI * w;
+      }
+      if (Array.isArray(w)) {
+        const result = fillShapeRec(shapeRec(w), (prefix, index) => {
+          const v = at(w, prefix);
+          return Math.PI * v;
+        });
+        return result;
+      }
+    }
+    const circFunc = [
+      (x) =>Math.sqrt(1.0-x*x),
+      (x) =>Math.sin(x),
+      (x) =>Math.cos(x),
+      (x) =>Math.tan(x),
+      (x) =>Math.sqrt(1.0+x*x),
+      (x) =>Math.sinh(x),
+      (x) =>Math.cosh(x),
+      (x) =>Math.tanh(x),
+      (x) =>Math.sqrt(-1.0+x*x),
+    ];
+    const circInvFunc = [
+      (x) =>Math.sqrt(1.0-x*x),
+      (x) =>Math.asin(x),
+      (x) =>Math.acos(x),
+      (x) =>Math.atan(x),
+      (x) =>(x+1)*Math.sqrt((x-1)/(x+1)),
+      (x) =>Math.asinh(x),
+      (x) =>Math.acosh(x),
+      (x) =>Math.atanh(x),
+      (x) =>-Math.sqrt(-1.0+x*x),
+    ];
+    if (typeof w === 'number' && typeof a === 'number') {
+      return a>=0?circFunc[a](w):circInvFunc[-a](w);
+    }
+    if(Array.isArray(w) && typeof a === 'number') {
+      const func = a>=0?circFunc[a]:circInvFunc[-a];
+      const result = fillShapeRec(shapeRec(w), (prefix, index) => {
+        const v = at(w, prefix);
+        return func(v);
+      });
+      return result;
+    }
+    throw new Error('Unsupported types for circle');
+  },
+  encode: (w, a) => {
+    if (typeof a === 'number')
+      a = [a];
+    const shapea = shapeRec(a);
+    if (typeof w === 'number' && shapea.length === 1) {
+      return encode(w, a);
+    }
+    if (typeof w === 'number')
+      w = [w];
+    const shapew = shapeRec(w);
+    const ta = transposeRec(a);
+    const shapeta = shapea.slice(1);
+    const resultShape = shapeta.concat(shapew);
+    const result = fillShapeRec(resultShape, (prefix, index) => {
+      const aidx = prefix.slice(0, shapeta.length);
+      const widx = prefix.slice(shapeta.length);
+      return encode(at(w, widx), at(ta, aidx));
+    });
+    return itransposeRec(result);
+  },
+  decode: (w, a) => {
+    const shapew = shapeRec(w);
+    if (shapew.length === 1) {
+      if (Array.isArray(a) && w.length !== a.length) {
+        if(a.length !== 1) {
+          throw new Error('Arrays must be of the same length for decode');
+        }
+      }
+      return decode(w, a);
+    }
+    if (typeof a === 'number')
+      a = Array.from({ length: shapew[0] }, () => a);
+    else if (Array.isArray(a) && a.length === 1) {
+      a = Array.from({ length: shapew[0] }, () => a[0]);
+    }
+    const shapea = shapeRec(a);
+    if(shapea[shapea.length-1] !== shapew[0]) {
+      throw new Error('Incompatible shapes for decode');
+    }
+    const tw = transposeRec(w);
+    const resultShape = shapea.slice(0, -1).concat(shapew.slice(1));
+    const result = fillShapeRec(resultShape, (prefix, index) => {
+      const aidx = prefix.slice(0, shapea.length-1);
+      const widx = prefix.slice(shapea.length-1);
+      return decode(at(tw, widx), at(a, aidx));
+    });
+    return result;
   },
   outer: (f) => (w, a) => {
     if (typeof f !== 'function') {
@@ -512,7 +725,7 @@ const G = {
     return drel((x,y) => y>=x, w, a);
   },
   residue: (w, a) => {
-    return mdfunc(x => Math.abs(x), (x,y) => x % y, w, a);
+    return mdfunc(x => Math.abs(x), mod, w, a);
   },
   divide: (w, a) => {
     return mdfunc(x => 1/x, (x,y) => y/x, w, a);
@@ -553,15 +766,96 @@ const G = {
   nor: (w, a) => {
     return mdfunc(x => x, (x,y) => x===0&&y===0?1:0, w, a);  
   },
-  iota: (n) => {
-    if (Array.isArray(n)) {
-      return fillShapeRec(n, (idx, index) => idx);
+  iota: (w, a) => {
+    if (a === undefined) {
+      if (Array.isArray(w)) {
+        return fillShapeRec(w, (idx, index) => idx);
+      }
+      if (typeof w === 'number') {
+        return Array.from({ length: w }, (_, i) => i);
+      } 
+      throw new Error('Unsupported type for iota');
     }
-    if (typeof n === 'number') {
-      return Array.from({ length: n }, (_, i) => i);
+    if (typeof a === 'string') {
+      a = a.split('');
     }
-    throw new Error('Unsupported type for iota');
+    if (typeof w === 'string') {
+      w = w.split('');
+    }
+    if (!Array.isArray(w)) {
+      w = [w];
+    }
+    const shapea = shapeRec(a);
+    const shapew = shapeRec(w);
+    const r = shapew.length-(shapea.length-1);
+    if(r<1) {
+      throw new Error('Incompatible shapes for iota');
+    }
+    const resultShape = shapew.slice(0, r);
+    const result = fillShapeRec(resultShape, (prefix, index) => {
+      const v = at(w, prefix);
+      const len = a.length;
+      for (let i = 0; i < len; i++) {
+        if (matchRec(at(a, [i]), v)===1)
+          return i;
+      }
+      return len;
+    });
+    return result;
   },
+  iota_index: (w, a) => {
+    if (a === undefined) {
+      if(typeof w === 'number')
+        w = [w];
+      if(!Array.isArray(w)) {
+        throw new Error('Unsupported type for iota_index');
+      }
+      const shapew = shapeRec(w);
+      const result = [];
+      if(shapew.length === 1) {
+        for(let j=0; j<w.length; j++) {
+          const v = w[j];
+          for(let i=0; i<v; i++) {
+            result.push(j);
+          }
+        }
+        return result;
+      }
+      traverseShapeRec(shapew, (prefix) => {
+        const v = at(w, prefix);
+        for(let i=0; i<v; i++) {
+          result.push(prefix);
+        }
+      });
+      return result;
+    }
+    if (typeof a === 'string') {
+      a = a.split('');
+    }
+    if (typeof w === 'string') {
+      w = w.split('');
+    }
+    if (!Array.isArray(w)) {
+      w = [w];
+    }
+    const shapea = shapeRec(a);
+    const shapew = shapeRec(w);
+    const r = shapew.length-(shapea.length-1);
+    if(r<1) {
+      throw new Error('Incompatible shapes for iota_index');
+    }
+    const resultShape = shapew.slice(0, r);
+    const result = fillShapeRec(resultShape, (prefix, index) => {
+      const v = at(w, prefix);
+      const len = a.length;
+      for (let i = 0; i < len; i++) {
+        if (v < at(a, [i]))
+          return i;
+      }
+      return len;
+    });
+    return result;
+  },            
   jot: (f, g) => (w, a) => {
     if(typeof f !== 'function') {
       return g(f, w);
@@ -614,18 +908,67 @@ const G = {
       return [a, w];
     }
   },
-  transpose: (a) => {
-    return transposeRec(a);
+  transpose: (w, a) => {
+    if (a === undefined) {
+      return transpose(w);
+    }
+    return permute(w, a);
   },
   squad: (w, a) => {
+    if(typeof w === 'string')
+      w = w.split('');
+    if(Array.isArray(a) && 
+      a.length === 1 && 
+      Array.isArray(a[0])) {
+      a = a[0];
+      const sw = shapeRec(w);
+      const sa = shapeRec(a);
+      const rw = sw.length;
+      if(rw===1) {
+        return fillShapeRec(sa, (prefix, index) => {
+          const v = at(a, prefix);
+          return w[v];
+        });
+      }
+      if(rw===sa[sa.length-1]) {
+        const resultShape = sa.slice(0, -1);
+        return fillShapeRec(resultShape, (prefix, index) => {
+          const v = at(a, prefix);
+          return at(w, v);
+        });
+      }
+      throw new Error('Unsupported shapes for squad');
+    }
     return getRec(w, a);
   },
   at: (f,g) => (w, a) => {
-    if(typeof f === 'function' && typeof g === 'function') {
-      return fillShapeRec(shapeRec(w), (prefix, index) => {
+    if(typeof g === 'function') {
+      const listPrefixes = [];
+      const listValues = [];
+      const condition = g(w);
+      const result = fillShapeRec(shapeRec(w), (prefix, index) => {
         const v = at(w, prefix);
-        return g(v)==1 ? f(v, a) : v;
+        const gv = at(condition, prefix);
+        if(gv==1) {
+          listPrefixes.push(prefix);
+          listValues.push(v);
+        }
+        return v;
       });
+      let newValues;
+      if(Array.isArray(f)) {
+        if(f.length !== listValues.length)
+          throw new Error('Array lengths must match');
+        newValues = f;
+      } else if (typeof f === 'function') {
+        newValues = f(listValues);
+      } else {
+        newValues = Array.apply(null, {length: listValues.length}).map(() => f);
+      }
+      listPrefixes.forEach((prefix, i) => {
+        assignRec(result, prefix, newValues[i]);
+      });
+      return result;
     }
     if(Array.isArray(g)) {
       if(Array.isArray(f)) {
@@ -662,6 +1005,18 @@ const G = {
   },
   enclose: (w, a) => {
     return [w];
+  },
+  pick: (w, a) => {
+    if (a===undefined) {
+      return w[0];
+    }
+    if (typeof a === 'number') {
+      return w[a];
+    }
+    if (Array.isArray(a)) {
+      return a.map(x => at(w, typeof x === 'number' ? [x] : x));
+    }
+    throw new Error('Unsupported type for pick');
   },
   take: (w, a) => {
     if (!Array.isArray(w)) {
@@ -786,14 +1141,7 @@ const parseExpression = (expression, scope) => {
   const belong = (category, list) => {
     return list.includes(category);
   }
-  const countInitialBrackets = (text) => {
-    let count = 0;
-    for (let i = 0; i < text.length; i++) {
-      if (text[i] === '[') count++;
-      else break;
-    }
-    return count;
-  };
+
   const reduceStack = () => {
     let foundReduction = true;
     while (foundReduction) {
@@ -893,7 +1241,7 @@ const parseExpression = (expression, scope) => {
         C.category === 'M'
       ) {
         //console.log('Found monadic operator:', B.text, C.text);
-        const newText = `(${C.text}(${B.text}))`;
+        const newText = `${C.text}(${B.text})`;
         stack.splice(size - 3, 3, 
           { category: 'F', text: newText }, A);
         foundReduction = true;
@@ -911,7 +1259,12 @@ const parseExpression = (expression, scope) => {
         belong(D.category, ['F', 'V'])
       ) {
         //console.log('Found dyadic operator:', B.text, C.text, D.text);
-        const newText = `(${C.text}(${B.text}, ${D.text}))`;
+        let newText;
+        if(B.text==='G.emptyFunc' && C.text==='G.dot') {
+          newText = `G.outer(${D.text})`;
+        } else { 
+          newText = `${C.text}(${B.text}, ${D.text})`;
+        }
         stack.splice(size - 4, 4, 
           { category: 'F', text: newText }, A);
         foundReduction = true;
@@ -952,11 +1305,10 @@ const parseExpression = (expression, scope) => {
       if(ABCD &&
         belong(A.category, 
           ['(', '←', 'M', 'F', 'Edge']) &&
-        B.category === 'V' &&
+        belong(B.category,['V', 'F', 'D', 'M']) &&
         C.category === '←' &&
         belong(D.category, ['F', 'V', 'M', 'D'])
       ) {
-        //console.log('Found assignment:', B.text, D.text);
         const [categoryEntry, global] 
           = find_category(B.text, scope);
         let newText = '';
@@ -981,15 +1333,6 @@ const parseExpression = (expression, scope) => {
         let newText = `if(${B.text}===1) return ${D.text}`;
         stack.splice(size - 4, 4, 
           { category: 'V', text: newText }, A);
-        foundReduction = true;
-        continue;
-      }
-      if(AB &&
-        A.text === 'G.outer' &&
-        B.category === 'F'
-      ) {
-        //console.log('Found outer:', B.text);
-        stack.splice(size - 2, 2, A, B);
         foundReduction = true;
         continue;
       }
@@ -1078,10 +1421,10 @@ const parseExpression = (expression, scope) => {
   return stack[0].text;
 }
 
-const parser = (text) => {
+const parser = (text, categories = { ...global_category }) => {
   const tokens = tokenizer(text);
   const [expressions, _] = breakExpressions(tokens, 0);
-  const scope = [{...global_category}];
+  const scope = [categories];
   let finalResult = '';
   for (let i = 0; i < expressions.length; i++) {
     const expression = expressions[i];
@@ -1095,20 +1438,21 @@ const parser = (text) => {
   return finalResult;
 }
 
-const aplToJavaScript = (text) => {
-  return parser(text);
+const aplToJavaScript = (text, categories = { ...global_category }) => {
+  return parser(text, categories);
 };
 
-const evaluateApl = (text, runtime = G) => {
-  const generatedCode = aplToJavaScript(text);
+const evaluateApl = (text, runtime = G, categories = { ...global_category }) => {
+  const generatedCode = aplToJavaScript(text, categories);
   const executor = new Function('G', generatedCode);
   return executor(Object.create(runtime));
 };
 
 const AplJS = () => {
   const context = Object.create(G);
+  const categories = { ...global_category };
   return (text) => {
-    const generatedCode = aplToJavaScript(text);
+    const generatedCode = aplToJavaScript(text, categories);
     const executor = new Function('G', generatedCode);
     return executor(context);
   };
