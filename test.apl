@@ -13,4 +13,4 @@ pow←{             ⍝ power operator: apply ⍹ times
 incr←{1+⍵}        ⍝ define an increment function
 (incr pow 3) 5    ⍝ apply it 3 times to 5
 
-fac←×/(1+⍳)
+fac←×⌿(1∘+⍳)

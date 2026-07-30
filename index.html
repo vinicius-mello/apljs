@@ -230,9 +230,15 @@
     import { aplToJavaScript, evaluateApl } from "./apl.js";
 
     const baseAplToken = apl.token.bind(apl);
+    // Matches the tokenizer's own unquoted-string rule in apl.js
+    // (`/^#[0-9\p{L}\-]+/u`) so #str highlights as a string, not a comment.
+    const HASH_STRING_RE = /^#[0-9\p{L}\-]+/u;
     const aplModeNoHashComment = {
       ...apl,
       token(stream, state) {
+        if (stream.match(HASH_STRING_RE)) {
+          return "string-2";
+        }
         if (stream.peek() === "#") {
           stream.next();
           return null;
@@ -304,10 +310,19 @@ incr←{1+⍵}        ⍝ define an increment function
       power: '⍣',
       over: '⍥',
       let: '←',
-      qcolon: '⍠',
-      qquote: '⍞',
+      object: '⍠',
+      quote: '⍞',
+      bind: '⍔',
       goto: '→',
       circle: '○',
+      flip: '⊖',
+      format: '⍕',
+      execute: '⍎',
+      partition: '⊆',
+      member: '∊',
+      find: '⍷',
+      union: '∪',
+      intersect: '∩',
     };
 
     let applyingEscape = false;
@@ -317,6 +332,7 @@ incr←{1+⍵}        ⍝ define an increment function
       { tag: [tags.operator, tags.arithmeticOperator], color: "#ffa657", fontWeight: "700" },
       { tag: tags.number, color: "#d2a8ff" },
       { tag: tags.string, color: "#7ee787" },
+      { tag: tags.special(tags.string), color: "#ff9bce", fontStyle: "italic" },
       { tag: tags.comment, color: "#8b949e", fontStyle: "italic" },
       { tag: tags.variableName, color: "#e6edf3" },
     ]);

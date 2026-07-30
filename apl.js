@@ -113,12 +113,50 @@ const global_category = {
   '↓': { category:'F', name: 'drop' },
   '⍣': { category:'D', name: 'power' },
   '⍥': { category:'D', name: 'over' },
-  '⍠': { category:'F', name: 'qcolon' },
-  '⍞': { category:'F', name: 'qquote' },
+  '⍠': { category:'F', name: 'buildObject' },
+  // Purely a parse-time marker (see reduceStack): ⍞ relabels the F/M/D
+  // token to its right as a plain V, so it compiles to a bare reference to
+  // the underlying JS function/HOF instead of being applied. No G.quote
+  // function actually exists - this name is never emitted.
+  '⍞': { category:'Q', name: 'quote' },
+  '⍔': { category:'D', name: 'bindMethod' },
   '→': { category:'F', name: 'emptyFunc' },
   '○': { category:'F', name: 'circle' },
   '⊤': { category:'F', name: 'encode' },
   '⊥': { category:'F', name: 'decode' },
+  '⊖': { category:'F', name: 'reverse_first' },
+  '⍕': { category:'F', name: 'format' },
+  '⍎': { category:'F', name: 'execute' },
+  '⊆': { category:'F', name: 'partition' },
+  '∊': { category:'F', name: 'member' },
+  '⍷': { category:'F', name: 'find' },
+  '∪': { category:'F', name: 'unique' },
+  '∩': { category:'F', name: 'intersect'},
+  '⍤': { category:'D', name: 'rank' },
+  '⌸': { category:'M', name: 'key' },
+  // Graphics library (Phase 3): plain lowercase words resolving to G.<name>,
+  // exactly like any other global identifier binding.
+  circle: { category:'F', name: 'svgCircle' },
+  rect: { category:'F', name: 'rect' },
+  line: { category:'F', name: 'line' },
+  polyline: { category:'F', name: 'polyline' },
+  polygon: { category:'F', name: 'polygon' },
+  path: { category:'F', name: 'path' },
+  text: { category:'F', name: 'text' },
+  group: { category:'F', name: 'group' },
+  svg: { category:'F', name: 'svg' },
+  style: { category:'F', name: 'style' },
+  scatter: { category:'F', name: 'scatter' },
+  // Curated JS globals, exposed by name so ⍔/⍠ have real objects to reach
+  // into without needing a raw eval escape hatch.
+  Math: { category:'V', name: 'Math' },
+  Date: { category:'V', name: 'Date' },
+  JSON: { category:'V', name: 'JSON' },
+  console: { category:'V', name: 'console' },
+  // Loaded via <script> tags in the host page (not npm deps of this
+  // module) - d3/Plot are simply undefined if that page doesn't load them.
+  d3: { category:'V', name: 'd3' },
+  Plot: { category:'V', name: 'Plot' },
 }
 
 const _a_ = global_category['⍺'].name;
@@ -346,6 +384,7 @@ const getRec = (arr, idx) => {
     return arr[idx];
   }
   if (!Array.isArray(idx)) {
+    console.log(arr, idx);
     throw new Error('Unsupported index type');
   }
   if (idx.length === 0) {
@@ -424,23 +463,236 @@ const permute = (a, p) => {
     });
 }
 
+// A "command" for ⍠ (buildObject) is [key, value(s)]. APL strand-flattening
+// collapses a single-pair list (e.g. ('x' 5)) into a bare pair, and a
+// one-command list into that command's own flat array (e.g. (('x' 5)) ===
+// ('x' 5)). Both cases are disambiguated here: a command list's first
+// element is only ever an array once there is more than one command, so a
+// leading string means "this whole thing is one command".
+const normalizeCommandList = (w) => {
+  if (!Array.isArray(w)) {
+    return [[w]];
+  }
+  if (w.length === 0) {
+    return [];
+  }
+  if (typeof w[0] === 'string') {
+    return [w];
+  }
+  return w.map(cmd => Array.isArray(cmd) ? cmd : [cmd]);
+};
+
+const reverseAxis = (w, firstAxis) => {
+  if (typeof w === 'string') {
+    return reverseAxis(w.split(''), firstAxis).join('');
+  }
+  if (!Array.isArray(w)) {
+    return w;
+  }
+  const shape = shapeRec(w);
+  const axis = firstAxis ? 0 : shape.length - 1;
+  const n = shape[axis];
+  return fillShapeRec(shape, (prefix) => {
+    const idx = prefix.slice();
+    idx[axis] = n - 1 - prefix[axis];
+    return at(w, idx);
+  });
+};
+
+const rotateAxis = (w, a, firstAxis) => {
+  if (typeof w === 'string') {
+    return rotateAxis(w.split(''), a, firstAxis).join('');
+  }
+  if (!Array.isArray(w)) {
+    return w;
+  }
+  const shape = shapeRec(w);
+  const axis = firstAxis ? 0 : shape.length - 1;
+  const n = shape[axis];
+  return fillShapeRec(shape, (prefix) => {
+    const amount = typeof a === 'number' ? a : at(a, prefix.filter((_, i) => i !== axis));
+    const shift = ((amount % n) + n) % n;
+    const idx = prefix.slice();
+    idx[axis] = (prefix[axis] + shift) % n;
+    return at(w, idx);
+  });
+};
+
+const partitionEnclose = (a, w) => {
+  if (typeof w === 'string') {
+    w = w.split('');
+  }
+  if (!Array.isArray(w) || !Array.isArray(a)) {
+    throw new Error('Partitioned enclose requires arrays');
+  }
+  const result = [];
+  let current = null;
+  let currentKey = null;
+  for (let i = 0; i < w.length; i++) {
+    const key = a[i];
+    if (!key) {
+      current = null;
+      currentKey = null;
+      continue;
+    }
+    if (current !== null && key === currentKey) {
+      current.push(w[i]);
+    } else {
+      current = [w[i]];
+      result.push(current);
+      currentKey = key;
+    }
+  }
+  return result;
+};
+
+const flattenDeep = (w) => {
+  if (!Array.isArray(w)) {
+    return [w];
+  }
+  return w.reduce((acc, x) => acc.concat(flattenDeep(x)), []);
+};
+
+const isMember = (item, list) => list.some(x => matchRec(item, x) === 1);
+
+const uniqueItems = (items) => {
+  const result = [];
+  for (const item of items) {
+    if (!result.some(x => matchRec(x, item) === 1)) {
+      result.push(item);
+    }
+  }
+  return result;
+};
+
+const formatNum = (x) => {
+  if (typeof x !== 'number') {
+    return String(x);
+  }
+  const v = Object.is(x, -0) ? 0 : x;
+  return String(v).replace('-', '¯');
+};
+
+const formatCell = (x) => (typeof x === 'string' ? x : formatNum(x));
+
+const padColumns = (rows) => {
+  const cols = rows[0].length;
+  const widths = Array.from({ length: cols }, (_, j) =>
+    Math.max(...rows.map(r => r[j].length)));
+  return rows.map(r => r.map((c, j) => c.padStart(widths[j])).join(' ')).join('\n');
+};
+
+const formatArray = (w) => {
+  if (typeof w === 'string') {
+    return w;
+  }
+  if (!Array.isArray(w)) {
+    return formatCell(w);
+  }
+  if (w.length === 0 || !Array.isArray(w[0])) {
+    return w.map(formatCell).join(' ');
+  }
+  return padColumns(w.map(row => row.map(formatCell)));
+};
+
+const formatFixed = (x, decimals) => {
+  if (typeof x !== 'number') {
+    return String(x);
+  }
+  return x.toFixed(decimals).replace('-', '¯');
+};
+
+const formatArrayFixed = (w, decimals, width) => {
+  const fmtOne = (x) => {
+    const s = formatFixed(x, decimals);
+    return width ? s.padStart(width) : s;
+  };
+  if (typeof w === 'string') {
+    return w;
+  }
+  if (!Array.isArray(w)) {
+    return fmtOne(w);
+  }
+  if (w.length === 0 || !Array.isArray(w[0])) {
+    return w.map(fmtOne).join(' ');
+  }
+  return padColumns(w.map(row => row.map(fmtOne)));
+};
+
+const totalCompare = (a, b) => {
+  const aIsArray = Array.isArray(a);
+  const bIsArray = Array.isArray(b);
+
+  if (aIsArray && bIsArray) {
+    const minLength = Math.min(a.length, b.length);
+    
+    for (let i = 0; i < minLength; i++) {
+      const result = totalCompare(a[i], b[i]);
+      if (result !== 0) return result;
+    }
+    
+    return a.length - b.length;
+  }
+
+  if (aIsArray) return -1;
+  if (bIsArray) return 1;
+
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
+// --- SVG scene-graph graphics (Phase 3) ---
+// Shape functions below build plain, DOM-free data objects
+// ({tag, attrs, children}) so they stay ordinary APL values: they can be
+// stored in variables, put in arrays, and passed to `group`/`style`. Actual
+// DOM conversion happens only in sceneToSvgElement, called lazily by a host
+// page (apl.html), so importing this module under Node never touches `document`.
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+const isSceneNode = (value) =>
+  Boolean(value) && typeof value === 'object' && typeof value.tag === 'string';
+
+const sceneToSvgElement = (node) => {
+  if (!isSceneNode(node)) {
+    throw new Error('Invalid scene node');
+  }
+  const el = document.createElementNS(SVG_NS, node.tag);
+  const attrs = node.attrs || {};
+  for (const key in attrs) {
+    const value = attrs[key];
+    if (value !== undefined && value !== null) {
+      el.setAttribute(key, String(value));
+    }
+  }
+  if (typeof node.text === 'string') {
+    el.textContent = node.text;
+  }
+  if (Array.isArray(node.children)) {
+    node.children.forEach((child) => el.appendChild(sceneToSvgElement(child)));
+  }
+  return el;
+};
+
+const sceneToSvgString = (node) => {
+  const root = node.tag === 'svg' ? node
+    : { tag: 'svg', attrs: { width: 300, height: 300, viewBox: '0 0 300 300' }, children: [node] };
+  return new XMLSerializer().serializeToString(sceneToSvgElement(root));
+};
+
+// Rank operator (⍤) helper: given the requested rank `k` and an operand's
+// actual rank `n`, returns the cell rank per Dyalog's clamping rule -
+// non-negative k clamps at n, negative k counts back from n and clamps at 0.
+const cellRankFor = (k, n) => (k >= 0 ? Math.min(k, n) : Math.max(n + k, 0));
+
 const G = {
-  qcolon: (w, a) => {
-    if (a===undefined) {
-      return eval(w);
-    }
-    for(let i=0;i<w.length;i++) {
-      const cmd = w[i];
-      a=a[cmd[0]](...cmd.slice(1));
-    }
-    return a;
-  },
-  qquote: (w, a) => {
-    if(a === undefined) {      
+  buildObject: (w, a) => {
+    if (a === undefined) {
       const result = {};
-      for(let i=0;i<w.length;i++) {
-        const cmd = w[i];
-        if(cmd.length === 2) {
+      const commands = normalizeCommandList(w);
+      for (let i = 0; i < commands.length; i++) {
+        const cmd = commands[i];
+        if (cmd.length === 2) {
           result[cmd[0]] = cmd[1];
         } else {
           result[cmd[0]] = cmd.slice(1);
@@ -450,6 +702,26 @@ const G = {
     }
     return a[w];
   },
+  // Dyadic operator (⍔): obj⍔'method' derives a monadic function that spreads
+  // its argument array as the call's parameters - obj⍔'method' applied to
+  // args calls obj.method(...args). A bare (non-array) arg is wrapped so
+  // (obj⍔'toFixed')2 works without forcing ,2.
+  bindMethod: (obj, methodName) => (args) => {
+    if (typeof obj[methodName] !== 'function') {
+      throw new Error(`${methodName} is not a function`);
+    }
+    return obj[methodName](...(Array.isArray(args) ? args : [args]));
+  },
+  Math,
+  Date,
+  JSON,
+  console,
+  // Getters (not bare identifiers, not a one-time snapshot) so this module
+  // still loads cleanly under Node or in a page that never loaded d3/Plot -
+  // they just read as undefined - and so it doesn't matter whether the
+  // host page's <script> tags for them run before or after this import.
+  get d3() { return globalThis.d3; },
+  get Plot() { return globalThis.Plot; },
   zilde: [],
   emptyFunc: (w, a) => [],
   set quad(value) {
@@ -462,8 +734,12 @@ const G = {
     if (typeof f !== 'function') {
       throw new Error('Each requires a function');
     }
-    if (Array.isArray(w)) {
+    if (Array.isArray(w)&&Array.isArray(a)) {
+      return w.map((x,i) => f(x, a[i]));
+    } else if(Array.isArray(w)) {
       return w.map(x => f(x, a));
+    } else if(Array.isArray(a)) {
+      return a.map(x => f(w, x));
     } else {
       return f(w, a);
     }
@@ -491,14 +767,17 @@ const G = {
     }
     throw new Error('Power requires a function or a number');
   },
-  reverse: (w) => {
-    if (Array.isArray(w)) {
-      return w.slice().reverse();
-    } else if (typeof w === 'string') {
-      return w.split('').reverse().join('');
-    } else {
-      throw new Error('Unsupported type for reverse');
+  reverse: (w, a) => {
+    if (a === undefined) {
+      return reverseAxis(w, false);
     }
+    return rotateAxis(w, a, false);
+  },
+  reverse_first: (w, a) => {
+    if (a === undefined) {
+      return reverseAxis(w, true);
+    }
+    return rotateAxis(w, a, true);
   },
   selfie: (f)=>(w, a) => {
     if(typeof f !== 'function')
@@ -564,17 +843,21 @@ const G = {
   deal: (w, a) => {
     if(a===undefined) {
       return mdfunc(x => Math.floor(Math.random() * x), undefined, w);
-    } else {
-      if (typeof w === 'number' && typeof a === 'number') {
-        const result = [];
-        for (let i = 0; i < a; i++) {
-          result.push(Math.floor(Math.random() * w));
-        }
-        return result;
-      } else {
-        throw new Error('Unsupported types for deal');
-      }
     }
+    if (typeof w === 'number' && typeof a === 'number') {
+      if (a > w) {
+        throw new Error('Deal requires the left argument to not exceed the right argument');
+      }
+      const pool = Array.from({ length: w }, (_, i) => i);
+      const result = [];
+      for (let i = 0; i < a; i++) {
+        const j = i + Math.floor(Math.random() * (w - i));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+        result.push(pool[i]);
+      }
+      return result;
+    }
+    throw new Error('Unsupported types for deal');
   },
   circle: (w, a) => {
     if(a===undefined) {
@@ -706,6 +989,62 @@ const G = {
       return result.reduceRight(aa);      
     });
   },
+  rank: (f, g) => (w, a) => {
+    if (typeof f !== 'function') {
+      throw new Error('Rank requires a function');
+    }
+    // g: scalar k applies everywhere; [k1,k2] is [dyadic-alpha, both-omega];
+    // [k1,k2,k3] is [dyadic-alpha, dyadic-omega, monadic-omega] (Dyalog order).
+    let alphaK, omegaKDyadic, omegaKMonadic;
+    if (typeof g === 'number') {
+      alphaK = g;
+      omegaKDyadic = g;
+      omegaKMonadic = g;
+    } else if (Array.isArray(g) && g.length === 2) {
+      alphaK = g[0];
+      omegaKDyadic = g[1];
+      omegaKMonadic = g[1];
+    } else if (Array.isArray(g) && g.length === 3) {
+      alphaK = g[0];
+      omegaKDyadic = g[1];
+      omegaKMonadic = g[2];
+    } else {
+      throw new Error('Rank requires a number or an array of 2 or 3 numbers');
+    }
+
+    if (a === undefined) {
+      const shape = shapeRec(w);
+      const cellRank = cellRankFor(omegaKMonadic, shape.length);
+      const frameRank = shape.length - cellRank;
+      if (frameRank === 0) {
+        return f(w);
+      }
+      const frameShape = shape.slice(0, frameRank);
+      return fillShapeRec(frameShape, (prefix) => f(at(w, prefix)));
+    }
+
+    const shapeW = shapeRec(w);
+    const shapeA = shapeRec(a);
+    const cellRankW = cellRankFor(omegaKDyadic, shapeW.length);
+    const cellRankA = cellRankFor(alphaK, shapeA.length);
+    const frameW = shapeW.slice(0, shapeW.length - cellRankW);
+    const frameA = shapeA.slice(0, shapeA.length - cellRankA);
+    const sameFrame = frameA.length === frameW.length && frameA.every((v, i) => v === frameW[i]);
+
+    // Frames must match, or one side must reduce to a single cell (frame []),
+    // which then broadcasts across every position of the other side's frame -
+    // standard APL scalar-extension applied to the two operands' frames.
+    if (sameFrame) {
+      return fillShapeRec(frameW, (prefix) => f(at(w, prefix), at(a, prefix)));
+    }
+    if (frameA.length === 0) {
+      return fillShapeRec(frameW, (prefix) => f(at(w, prefix), a));
+    }
+    if (frameW.length === 0) {
+      return fillShapeRec(frameA, (prefix) => f(w, at(a, prefix)));
+    }
+    throw new Error('Rank operator: frames of the two arguments must match, or one must reduce to a single cell');
+  },
   equals: (w,a) => {
     return drel((x,y) => y===x, w, a);
   },
@@ -755,9 +1094,15 @@ const G = {
     return mdfunc(x => factorial(x), (x,y) => binomial(x, y), w, a);
   },
   or: (w, a) => {
+    if (a===undefined) {
+      return w.sort((a, b)=>-totalCompare(a, b))
+    }
     return mdfunc(x => x, (x,y) => gcd(x, y), w, a);
   },
   and: (w, a) => {
+    if (a===undefined) {
+      return w.sort(totalCompare);
+    }
     return mdfunc(x => x, (x,y) => lcm(x, y), w, a);
   },
   nand: (w, a) => {
@@ -890,6 +1235,57 @@ const G = {
     }
     return result;
   }),
+  // Key (⌸, monadic operator): f⌸w groups w's own items by value - for each
+  // unique value (in first-occurrence order), f is called with (indices, key)
+  // i.e. ⍵=indices into w, ⍺=the key itself. a f⌸w classifies by a instead -
+  // f is called with (matching items of w, key), grouping w's actual values
+  // rather than their positions. Both forms collect one f-result per unique
+  // key, in first-occurrence order.
+  key: (f) => (w, a) => {
+    if (typeof f !== 'function') {
+      throw new Error('Key requires a function');
+    }
+    const findKeyIndex = (keys, k) => keys.findIndex((existing) => matchRec(existing, k) === 1);
+
+    if (a === undefined) {
+      const items = typeof w === 'string' ? w.split('') : w;
+      if (!Array.isArray(items)) {
+        throw new Error('Key requires an array');
+      }
+      const keys = [];
+      const indexGroups = [];
+      for (let i = 0; i < items.length; i++) {
+        const k = items[i];
+        const idx = findKeyIndex(keys, k);
+        if (idx === -1) {
+          keys.push(k);
+          indexGroups.push([i]);
+        } else {
+          indexGroups[idx].push(i);
+        }
+      }
+      return keys.map((k, i) => f(indexGroups[i], k));
+    }
+
+    const classifier = typeof a === 'string' ? a.split('') : (Array.isArray(a) ? a : [a]);
+    const items = typeof w === 'string' ? w.split('') : (Array.isArray(w) ? w : [w]);
+    if (classifier.length !== items.length) {
+      throw new Error('Key requires the classifier and data to have the same length');
+    }
+    const keys = [];
+    const valueGroups = [];
+    for (let i = 0; i < classifier.length; i++) {
+      const k = classifier[i];
+      const idx = findKeyIndex(keys, k);
+      if (idx === -1) {
+        keys.push(k);
+        valueGroups.push([items[i]]);
+      } else {
+        valueGroups[idx].push(items[i]);
+      }
+    }
+    return keys.map((k, i) => f(valueGroups[i], k));
+  },
   comma: (w, a) => {
     if (a === undefined) {
       if (Array.isArray(w)) {
@@ -917,28 +1313,28 @@ const G = {
   squad: (w, a) => {
     if(typeof w === 'string')
       w = w.split('');
-    if(Array.isArray(a) && 
-      a.length === 1 && 
-      Array.isArray(a[0])) {
-      a = a[0];
-      const sw = shapeRec(w);
-      const sa = shapeRec(a);
-      const rw = sw.length;
-      if(rw===1) {
-        return fillShapeRec(sa, (prefix, index) => {
-          const v = at(a, prefix);
-          return w[v];
-        });
-      }
-      if(rw===sa[sa.length-1]) {
-        const resultShape = sa.slice(0, -1);
-        return fillShapeRec(resultShape, (prefix, index) => {
-          const v = at(a, prefix);
-          return at(w, v);
-        });
-      }
-      throw new Error('Unsupported shapes for squad');
-    }
+    // if(Array.isArray(a) && 
+    //   a.length === 1 && 
+    //   Array.isArray(a[0])) {
+    //   a = a[0];
+    //   const sw = shapeRec(w);
+    //   const sa = shapeRec(a);
+    //   const rw = sw.length;
+    //   if(rw===1) {
+    //     return fillShapeRec(sa, (prefix, index) => {
+    //       const v = at(a, prefix);
+    //       return w[v];
+    //     });
+    //   }
+    //   if(rw===sa[sa.length-1]) {
+    //     const resultShape = sa.slice(0, -1);
+    //     return fillShapeRec(resultShape, (prefix, index) => {
+    //       const v = at(a, prefix);
+    //       return at(w, v);
+    //     });
+    //   }
+    //   throw new Error('Unsupported shapes for squad');
+    // }
     return getRec(w, a);
   },
   at: (f,g) => (w, a) => {
@@ -992,7 +1388,7 @@ const G = {
       throw new Error('Grade up requires an array');
     }
     return w.map((v, i) => {return {i, v}})
-          .sort((a, b) => {return a.v > b.v ? 1 : a.v == b.v ? 0 : -1 })
+          .sort((a, b) => totalCompare(a.v, b.v))
           .map((obj) => obj.i);
   },
   grade_down: (w) => {
@@ -1000,15 +1396,28 @@ const G = {
       throw new Error('Grade down requires an array');
     }
     return w.map((v, i) => {return {i, v}})
-          .sort((a, b) => {return a.v < b.v ? 1 : a.v == b.v ? 0 : -1 })
+          .sort((a, b) => -totalCompare(a.v, b.v))
           .map((obj) => obj.i);
   },
   enclose: (w, a) => {
-    return [w];
+    if (a === undefined) {
+      return [w];
+    }
+    return partitionEnclose(a, w);
+  },
+  partition: (w, a) => {
+    if (a === undefined) {
+      return [w];
+    }
+    return partitionEnclose(a, w);
   },
   pick: (w, a) => {
     if (a===undefined) {
-      return w[0];
+      if (Array.isArray(w))
+        return w.length===0? 0 : w[0];
+      if (typeof w==='string') 
+        return w.length===0? ' ' : w[0];
+      return w;
     }
     if (typeof a === 'number') {
       return w[a];
@@ -1071,6 +1480,173 @@ const G = {
       return at(w, idx);
     });
     return result;
+  },
+  format: (w, a) => {
+    if (a === undefined) {
+      return formatArray(w);
+    }
+    let width;
+    let decimals;
+    if (Array.isArray(a)) {
+      [width, decimals] = a;
+    } else {
+      decimals = a;
+    }
+    return formatArrayFixed(w, decimals, width);
+  },
+  execute: function (w) {
+    if (typeof w !== 'string') {
+      throw new Error('Execute requires a string');
+    }
+    // Reuses the caller's own runtime object (`this`) so assignments and
+    // lookups inside the executed string see/affect the same session state.
+    // Parses with fresh default categories, so it only knows about names
+    // already present as plain values on `this` - it can't tell that a
+    // previously-defined dfn is a function, so `f 5` inside the string
+    // won't apply it (falls back to strand-forming an array instead).
+    const generatedCode = aplToJavaScript(w);
+    const fn = new Function('G', generatedCode);
+    return fn(this);
+  },
+  svgCircle: (w, a) => {
+    const [cx, cy] = a ?? [0, 0];
+    return { tag: 'circle', attrs: { cx, cy, r: w } };
+  },
+  rect: (w, a) => {
+    const [x, y] = a ?? [0, 0];
+    const [width, height] = w;
+    return { tag: 'rect', attrs: { x, y, width, height } };
+  },
+  line: (w, a) => {
+    const [x1, y1] = a ?? [0, 0];
+    const [x2, y2] = w;
+    return { tag: 'line', attrs: { x1, y1, x2, y2 } };
+  },
+  polyline: (w) => {
+    const points = w.map(([x, y]) => `${x},${y}`).join(' ');
+    return { tag: 'polyline', attrs: { points } };
+  },
+  polygon: (w) => {
+    const points = w.map(([x, y]) => `${x},${y}`).join(' ');
+    return { tag: 'polygon', attrs: { points } };
+  },
+  path: (w) => {
+    return { tag: 'path', attrs: { d: w } };
+  },
+  text: (w, a) => {
+    const [x, y] = a ?? [0, 0];
+    return { tag: 'text', attrs: { x, y }, text: String(w) };
+  },
+  group: (w, a) => {
+    const children = Array.isArray(w) ? w : [w];
+    return { tag: 'g', attrs: a || {}, children };
+  },
+  svg: (w, a) => {
+    const [width, height] = a ?? [300, 300];
+    const children = Array.isArray(w) ? w : [w];
+    return { tag: 'svg', attrs: { width, height, viewBox: `0 0 ${width} ${height}` }, children };
+  },
+  style: (w, a) => {
+    if (!isSceneNode(w)) {
+      throw new Error('style requires a scene node');
+    }
+    return { ...w, attrs: { ...w.attrs, ...a } };
+  },
+  scatter: (w, a) => {
+    const r = a ?? 2;
+    const children = w.map(([x, y]) => ({ tag: 'circle', attrs: { cx: x, cy: y, r } }));
+    return { tag: 'g', children };
+  },
+  member: (w, a) => {
+    if (a === undefined) {
+      if (typeof w === 'string') {
+        return w;
+      }
+      if (!Array.isArray(w)) {
+        return [w];
+      }
+      return flattenDeep(w);
+    }
+    const list = typeof w === 'string' ? w.split('') : (Array.isArray(w) ? w : [w]);
+    if (typeof a === 'string') {
+      return a.split('').map(x => (isMember(x, list) ? 1 : 0));
+    }
+    if (!Array.isArray(a)) {
+      return isMember(a, list) ? 1 : 0;
+    }
+    return fillShapeRec(shapeRec(a), (prefix) => (isMember(at(a, prefix), list) ? 1 : 0));
+  },
+  // Rank-1 only (like compress/partition elsewhere in this file): `a` is
+  // treated as a flat pattern searched for as a contiguous run in `w`.
+  find: (w, a) => {
+    const warr = typeof w === 'string' ? w.split('') : w;
+    if (!Array.isArray(warr)) {
+      throw new Error('Find requires an array right argument');
+    }
+    const parr = Array.isArray(a) ? a : [a];
+    const n = warr.length;
+    const m = parr.length;
+    const result = new Array(n).fill(0);
+    if (m === 0 || m > n) {
+      return result;
+    }
+    for (let i = 0; i <= n - m; i++) {
+      let ok = true;
+      for (let j = 0; j < m; j++) {
+        if (matchRec(warr[i + j], parr[j]) === 0) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok) {
+        result[i] = 1;
+      }
+    }
+    return result;
+  },
+  unique: (w, a) => {
+    const wasString = typeof w === 'string';
+    const witems = wasString ? w.split('') : w;
+    if (!Array.isArray(witems)) {
+      throw new Error('Unique/union requires an array');
+    }
+    if (a === undefined) {
+      const result = uniqueItems(witems);
+      return wasString ? result.join('') : result;
+    }
+    const wasStringA = typeof a === 'string';
+    const aitems = wasStringA ? a.split('') : a;
+    const merged = uniqueItems(aitems.concat(witems));
+    return (wasString && wasStringA) ? merged.join('') : merged;
+  },
+  intersect: (w, a) => {
+    const wasStringA = typeof a === 'string';
+    const aitems = wasStringA ? a.split('') : a;
+    const witems = typeof w === 'string' ? w.split('') : w;
+    if (!Array.isArray(aitems) || !Array.isArray(witems)) {
+      throw new Error('Intersection requires arrays');
+    }
+    const result = uniqueItems(aitems).filter(x => isMember(x, witems));
+    return wasStringA ? result.join('') : result;
+  },
+  not: (w, a) => {
+    if (a === undefined) {
+      return mdfunc((x) => {
+        if (x !== 0 && x !== 1) {
+          throw new Error('Domain error: ~ requires 0 or 1');
+        }
+        return 1 - x;
+      }, undefined, w);
+    }
+    // Dyadic ~ is "without": elements of `a` that do not occur in `w`.
+    const wasStringA = typeof a === 'string';
+    const aitems = wasStringA ? a.split('') : a;
+    const witems = typeof w === 'string' ? w.split('') : (Array.isArray(w) ? w : [w]);
+    if (!Array.isArray(aitems)) {
+      throw new Error('Without requires an array left argument');
+    }
+    const result = aitems.filter(x => !isMember(x, witems));
+    return wasStringA ? result.join('') : result;
   }
 };
 
@@ -1171,14 +1747,25 @@ const parseExpression = (expression, scope) => {
         belong(B.category, ['V','F','D', 'M']) &&
         C.category === ')'
       ) {
-        //console.log('Found parentheses:', B.text);  
+        //console.log('Found parentheses:', B.text);
         let newText = B.text;
         stack.splice(size - 3, 3, { category: B.category, text: newText });
         foundReduction = true;
         continue;
       }
-      if (ABC && 
-        !belong(A.category, ['V', ')']) && 
+      if (AB &&
+        A.category === 'Q' &&
+        belong(B.category, ['F', 'M', 'D', 'V'])
+      ) {
+        // ⍞ quotes whatever sits to its right into a plain value - same
+        // generated code, just relabeled so it can be stored, put in an
+        // array, or handed to a JS callback instead of being applied.
+        stack.splice(size - 2, 2, { category: 'V', text: B.text });
+        foundReduction = true;
+        continue;
+      }
+      if (ABC &&
+        !belong(A.category, ['V', ')']) &&
         B.category === 'V' &&
         C.category === 'V'
       ) {
@@ -1467,5 +2054,8 @@ export {
   evaluateApl,
   G,
   global_category,
-  AplJS
+  AplJS,
+  isSceneNode,
+  sceneToSvgElement,
+  sceneToSvgString
 };

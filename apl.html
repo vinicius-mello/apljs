@@ -35,6 +35,51 @@
       --cell-head-bg: #101a12;
       --matrix-bg: #0d1710;
       --matrix-border: #2c4933;
+      --matrix-fg: #d6f6de;
+      --matrix-cell-border: #213826;
+      --matrix-row-label-fg: #8aac93;
+      --matrix-row-label-bg: #132118;
+      /* Derived once here (not per-theme): these are plain var() references,
+         resolved against whatever --matrix-bg/--accent the active
+         [data-theme] override supplies, so switching themes re-colors both
+         new and already-rendered SVG output without touching apl.js. */
+      --svg-bg: var(--matrix-bg);
+      --svg-fill: color-mix(in oklab, var(--accent) 22%, transparent);
+      --svg-stroke: var(--accent);
+      /* button.primary/.warn have their own dark pill background regardless
+         of theme (bright accent text on a dark chip) - only the light theme
+         below needs to override these, so the 5 dark themes stay identical. */
+      --btn-primary-bg: #1b3422;
+      --btn-primary-border: #336b43;
+      --btn-warn-border: #6a4530;
+      /* CodeMirror instance + syntax colors, referenced by editorTheme/
+         highlight in the module script below via var() so switching theme
+         re-colors already-open editors with no JS reconfiguration needed. */
+      --editor-bg: #0a120c;
+      --editor-fg: #d7f7df;
+      --editor-caret: #9ffab4;
+      --editor-gutter-fg: #7fa989;
+      --editor-gutter-border: #1f3423;
+      --editor-gutter-bg: #0c140d;
+      --editor-active-line: rgba(134, 240, 158, 0.08);
+      --editor-active-line-gutter: rgba(134, 240, 158, 0.12);
+      --editor-selection: rgba(159, 250, 180, 0.22);
+      --syntax-keyword: #90f0b1;
+      --syntax-operator: #ffbe71;
+      --syntax-number: #d8ffaa;
+      --syntax-string: #6fe8c9;
+      --syntax-string-alt: #c9a7ff;
+      --syntax-comment: #6f9277;
+      --syntax-variable: #d7f7df;
+      --output-fg: #dfffe6;
+      --cell-history-head-fg: #6f8c76;
+      --cell-output-head-fg: #9bc8a8;
+      /* .hint's background is a fixed dark strip in every theme (see
+         .hint below); this just follows --muted so the 4 other dark
+         themes keep their own tint, same trick as --svg-fill above. Light
+         themes override it directly below since their --muted is dark
+         ink meant for light backgrounds, not this permanently-dark bar. */
+      --hint-fg: var(--muted);
     }
 
     :root[data-theme="amber"] {
@@ -145,6 +190,123 @@
       --matrix-border: #36538f;
     }
 
+    /* Light theme, still retro: classic line-printer "greenbar" paper -
+       alternating white/pale-green bands (reusing the existing --grid
+       scanline rule at authentic greenbar spacing) with dark phosphor-green
+       ink instead of bright-on-black. */
+    :root[data-theme="greenbar"] {
+      --bg: #eef1e2;
+      --grid: rgba(46, 109, 60, 0.12);
+      --glow-a: rgba(46, 109, 60, 0.07);
+      --glow-b: rgba(180, 140, 60, 0.06);
+      --bg-grad-1: #f7f6ec;
+      --bg-grad-2: #eef1e2;
+      --bg-grad-3: #f4f2e6;
+      --panel: #fbfaf2;
+      --panel-2: #f1f2e6;
+      --panel-head-1: #e6ecda;
+      --panel-head-2: #dbe6cd;
+      --ink: #1f2b1f;
+      --muted: #5b6b57;
+      --accent: #1e5631;
+      --accent-2: #8a5a2b;
+      --border: #c3cdb6;
+      --focus: #2f6d3c;
+      --topbar-bg: rgba(251, 250, 242, 0.9);
+      --btn-bg: #eef1e2;
+      --btn-bg-hover: #e2e8d1;
+      --cell-bg: #fdfcf6;
+      --cell-head-bg: #eef2e3;
+      --matrix-bg: #eef3e6;
+      --matrix-border: #a9c19a;
+      --matrix-fg: #1f2b1f;
+      --matrix-cell-border: #cdd9c0;
+      --matrix-row-label-fg: #4c5a48;
+      --matrix-row-label-bg: #e3ead8;
+      --btn-primary-bg: #e3edda;
+      --btn-primary-border: #9dc2a0;
+      --btn-warn-border: #d8c39a;
+      --editor-bg: #fbfaf2;
+      --editor-fg: #1f2b1f;
+      --editor-caret: #1e5631;
+      --editor-gutter-fg: #6b7a66;
+      --editor-gutter-border: #c3cdb6;
+      --editor-gutter-bg: #f1f2e4;
+      --editor-active-line: rgba(30, 86, 49, 0.07);
+      --editor-active-line-gutter: rgba(30, 86, 49, 0.11);
+      --editor-selection: rgba(30, 86, 49, 0.16);
+      --syntax-keyword: #1e5631;
+      --syntax-operator: #a15b12;
+      --syntax-number: #3d6b2f;
+      --syntax-string: #0f6e63;
+      --syntax-string-alt: #7c3aed;
+      --syntax-comment: #7c8a74;
+      --syntax-variable: #22281f;
+      --output-fg: #1f2b1f;
+      --cell-history-head-fg: #5b6b57;
+      --cell-output-head-fg: #1e5631;
+      --hint-fg: #bfe9c9;
+    }
+
+    /* Light theme, still retro: classic Windows 3.1 "Program Manager" look -
+       teal desktop behind gray dialog-style panels, navy ink, and a proper
+       dark red for errors (the base --danger salmon reads too washed-out
+       against light panels, same class of bug --output-fg fixed above). */
+    :root[data-theme="win31"] {
+      --bg: #008080;
+      --grid: rgba(0, 0, 128, 0.1);
+      --glow-a: rgba(0, 0, 128, 0.12);
+      --glow-b: rgba(255, 255, 255, 0.08);
+      --bg-grad-1: #017a7a;
+      --bg-grad-2: #008080;
+      --bg-grad-3: #007373;
+      --panel: #c0c0c0;
+      --panel-2: #d4d0c8;
+      --panel-head-1: #e2e8f4;
+      --panel-head-2: #ccd8ec;
+      --ink: #000000;
+      --muted: #38406a;
+      --accent: #000080;
+      --accent-2: #800000;
+      --danger: #a30000;
+      --border: #8a8a9a;
+      --focus: #0000cd;
+      --topbar-bg: rgba(192, 192, 192, 0.92);
+      --btn-bg: #c0c0c0;
+      --btn-bg-hover: #d8d8e0;
+      --cell-bg: #ffffff;
+      --cell-head-bg: #dbe4f0;
+      --matrix-bg: #eef2f8;
+      --matrix-border: #9aa8c0;
+      --matrix-fg: #10163a;
+      --matrix-cell-border: #c3ccdd;
+      --matrix-row-label-fg: #3a4470;
+      --matrix-row-label-bg: #dde5f2;
+      --btn-primary-bg: #dbe4f0;
+      --btn-primary-border: #6f86b8;
+      --btn-warn-border: #b98a8a;
+      --editor-bg: #ffffff;
+      --editor-fg: #0a0a1e;
+      --editor-caret: #000080;
+      --editor-gutter-fg: #5a6180;
+      --editor-gutter-border: #c3ccdd;
+      --editor-gutter-bg: #eef1f8;
+      --editor-active-line: rgba(0, 0, 128, 0.06);
+      --editor-active-line-gutter: rgba(0, 0, 128, 0.1);
+      --editor-selection: rgba(0, 0, 205, 0.2);
+      --syntax-keyword: #000080;
+      --syntax-operator: #8a3d00;
+      --syntax-number: #1560bd;
+      --syntax-string: #006060;
+      --syntax-string-alt: #6a2c8a;
+      --syntax-comment: #6b7280;
+      --syntax-variable: #101828;
+      --output-fg: #0a0a1e;
+      --cell-history-head-fg: #38406a;
+      --cell-output-head-fg: #000080;
+      --hint-fg: #aebfe6;
+    }
+
     * {
       box-sizing: border-box;
     }
@@ -230,13 +392,13 @@
     }
 
     button.primary {
-      border-color: #336b43;
-      background: #1b3422;
+      border-color: var(--btn-primary-border);
+      background: var(--btn-primary-bg);
       color: var(--accent);
     }
 
     button.warn {
-      border-color: #6a4530;
+      border-color: var(--btn-warn-border);
       color: var(--accent-2);
     }
 
@@ -337,6 +499,23 @@
       border-color: #427156;
     }
 
+    .history-delete-btn {
+      border: 1px solid #2f5640;
+      border-radius: 999px;
+      background: #162218;
+      color: #b8d6c0;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+    }
+
+    .history-delete-btn:hover {
+      background: #2b1414;
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
     .history-js {
       margin: 8px 0 0;
       white-space: pre-wrap;
@@ -356,11 +535,11 @@
     }
 
     .cell-history .cell-head {
-      color: #6f8c76;
+      color: var(--cell-history-head-fg);
     }
 
     .cell-output .cell-head {
-      color: #9bc8a8;
+      color: var(--cell-output-head-fg);
     }
 
     .cell-error .cell-head {
@@ -386,7 +565,7 @@
       word-break: break-word;
       line-height: 1.45;
       font-family: "Fira Code", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace;
-      color: #dfffe6;
+      color: var(--output-fg);
       font-size: 15px;
     }
 
@@ -419,19 +598,19 @@
     }
 
     .matrix td {
-      border: 1px solid #213826;
+      border: 1px solid var(--matrix-cell-border);
       padding: 6px 10px;
       font-family: "Fira Code", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace;
       font-size: 14px;
-      color: #d6f6de;
+      color: var(--matrix-fg);
       text-align: right;
       min-width: 30px;
     }
 
     .matrix td.row-label {
       text-align: left;
-      color: #8aac93;
-      background: #132118;
+      color: var(--matrix-row-label-fg);
+      background: var(--matrix-row-label-bg);
     }
 
     .matrix td.tensor-cell {
@@ -463,7 +642,7 @@
     }
 
     .svg-wrap {
-      background: #f6f8f7;
+      background: var(--svg-bg);
       border-radius: 10px;
       padding: 8px;
       width: max-content;
@@ -471,22 +650,115 @@
       overflow: auto;
     }
 
-    .help {
+    /* Theme-driven defaults for shapes from the graphics library (Phase 3).
+       :not([...]) means these only fill in what the APL code didn't already
+       set via `style` - explicit fill/stroke attrs always win untouched. */
+    .svg-wrap svg :where(circle, rect, polygon, path):not([fill]) {
+      fill: var(--svg-fill);
+    }
+
+    .svg-wrap svg :where(line, polyline):not([fill]) {
+      fill: none;
+    }
+
+    .svg-wrap svg text:not([fill]) {
+      fill: var(--svg-stroke);
+    }
+
+    .svg-wrap svg :where(circle, rect, line, polyline, polygon, path):not([stroke]) {
+      stroke: var(--svg-stroke);
+    }
+
+    .svg-wrap svg :where(circle, rect, line, polyline, polygon, path):not([stroke-width]) {
+      stroke-width: 1.5;
+    }
+
+    .help-overlay {
       display: none;
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border);
-      background: #0f1711;
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: rgba(0, 0, 0, 0.55);
+      align-items: flex-start;
+      justify-content: center;
+      padding: 5vh 16px;
+    }
+
+    .help-overlay.open {
+      display: flex;
+    }
+
+    .help-modal {
+      width: min(820px, 100%);
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
       color: #b8d6c0;
     }
 
-    .help.open {
-      display: block;
+    .help-modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: linear-gradient(90deg, var(--panel-head-1) 0%, var(--panel-head-2) 100%);
+      border-bottom: 1px solid var(--border);
     }
 
-    .help h2 {
-      margin: 0 0 8px;
-      font-size: 0.9rem;
+    .help-modal-head h2 {
+      margin: 0;
+      font-size: 1rem;
       color: var(--accent);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .help-close {
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 0.9rem;
+      line-height: 1;
+    }
+
+    .help-tabs {
+      display: flex;
+      gap: 6px;
+      padding: 10px 16px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .help-tab {
+      border-radius: 8px 8px 0 0;
+      border: 1px solid var(--border);
+      border-bottom: none;
+      background: var(--btn-bg);
+      color: var(--muted);
+      padding: 7px 12px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+
+    .help-tab.active {
+      background: var(--panel-2);
+      color: var(--accent);
+    }
+
+    .help-body {
+      padding: 14px 16px 16px;
+      overflow-y: auto;
+    }
+
+    .help-tab-panel {
+      display: none;
+    }
+
+    .help-tab-panel.active {
+      display: block;
     }
 
     .help p {
@@ -503,10 +775,71 @@
       font-size: 0.83rem;
     }
 
+    .help-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    .help-table th {
+      text-align: left;
+      color: var(--muted);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      padding: 4px 8px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--panel);
+    }
+
+    .help-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #1b2f20;
+      vertical-align: top;
+    }
+
+    .help-table .glyph-cell {
+      font-family: "Fira Code", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace;
+      font-size: 1rem;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+
+    .help-code {
+      font-family: "Fira Code", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace;
+      color: #dfffe6;
+      background: #0f1911;
+      border: 1px solid #203826;
+      border-radius: 6px;
+      padding: 1px 5px;
+      font-size: 0.82rem;
+      white-space: nowrap;
+    }
+
+    .help-graphics-item {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      background: var(--panel-2);
+    }
+
+    .help-graphics-item h3 {
+      margin: 0 0 4px;
+      font-size: 0.88rem;
+      color: var(--accent-2);
+    }
+
+    .help-graphics-item p {
+      margin: 4px 0;
+    }
+
     .hint {
       border-top: 1px solid var(--border);
       padding: 9px 14px;
-      color: var(--muted);
+      color: var(--hint-fg);
       font-size: 0.8rem;
       background: #0c130d;
     }
@@ -561,12 +894,15 @@
         <option value="teal-crt">Teal CRT</option>
         <option value="sunset-terminal">Sunset Terminal</option>
         <option value="blue-monitor">Blue Monitor</option>
+        <option value="greenbar">Greenbar Paper</option>
+        <option value="win31">Windows 3.1</option>
       </select>
       <button id="runBtn" class="primary">Run (Shift+Enter)</button>
       <button id="clearBtn" class="warn">Clear History</button>
       <button id="restartBtn" class="warn">Restart Session</button>
-      <button id="helpBtn">APL Escapes</button>
+      <button id="helpBtn">Help</button>
       <button id="sampleBtn">Insert Sample</button>
+      <button id="graphicsSampleBtn">Insert Graphics Sample</button>
     </div>
   </header>
 
@@ -576,18 +912,53 @@
         <span>Session Timeline</span>
         <span id="status">Ready.</span>
       </div>
-      <section id="helpPanel" class="help" aria-hidden="true">
-        <h2>Escape Commands</h2>
-        <p>Type backslash plus name inside the editor to emit an APL symbol automatically.</p>
-        <div id="helpGrid" class="help-grid"></div>
-      </section>
       <section id="repl" aria-live="polite"></section>
       <p class="hint">Shift+Enter runs current input and creates a new cell.</p>
     </section>
   </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/@svgdotjs/svg.js@3.2/dist/svg.min.js"></script>
+  <div id="helpOverlay" class="help-overlay" aria-hidden="true">
+    <div class="help-modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <div class="help-modal-head">
+        <h2 id="helpTitle">Help</h2>
+        <button id="helpCloseBtn" class="help-close warn" aria-label="Close help">✕</button>
+      </div>
+      <div class="help-tabs">
+        <button class="help-tab active" data-tab="escapes" type="button">Escape Shortcuts</button>
+        <button class="help-tab" data-tab="primitives" type="button">Primitives</button>
+        <button class="help-tab" data-tab="graphics" type="button">SVG Graphics</button>
+        <button class="help-tab" data-tab="ffi" type="button">FFI Examples</button>
+      </div>
+      <div class="help-body">
+        <section id="helpTabEscapes" class="help-tab-panel active">
+          <p>Type backslash plus name inside the editor to emit an APL symbol automatically.</p>
+          <div id="helpGrid" class="help-grid"></div>
+        </section>
+        <section id="helpTabPrimitives" class="help-tab-panel">
+          <p>Monadic use has one right argument (⍵); dyadic use has a left (⍺) and right argument.</p>
+          <table class="help-table">
+            <thead>
+              <tr><th>Glyph</th><th>Name</th><th>Monadic</th><th>Dyadic</th></tr>
+            </thead>
+            <tbody id="helpPrimitivesBody"></tbody>
+          </table>
+        </section>
+        <section id="helpTabGraphics" class="help-tab-panel">
+          <p>Shapes are plain data (<span class="help-code">{tag, attrs, children}</span>), not live DOM/SVG.js objects - they compose with ordinary APL arrays and only turn into real SVG when displayed.</p>
+          <p><strong>d3</strong> and <strong>Plot</strong> (Observable Plot) are also loaded and reachable as globals via ⍔ - e.g. <span class="help-code">(Plot⍔#barY⊢⊂1 2 3 4 5)⍔#plot⊢⍬</span> (a mark's own <span class="help-code">.plot()</span> renders it standalone, no options object needed). Any real DOM element a cell evaluates to - what <span class="help-code">Plot.plot(...)</span> returns, or anything else built via the FFI - is displayed directly, not just the shapes above.</p>
+          <div id="helpGraphicsList"></div>
+        </section>
+        <section id="helpTabFFI" class="help-tab-panel">
+          <p>Worked examples of the FFI trio: <span class="help-code">⍔</span> calls a JS method (<span class="help-code">obj⍔'method'⊢args</span>), <span class="help-code">⍠</span> builds/reads plain objects, <span class="help-code">⍞</span> turns an APL function into a plain value. <span class="help-code">#word</span> is shorthand for <span class="help-code">'word'</span>.</p>
+          <div id="helpFFIList"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.15.4/beautify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6"></script>
 
   <script type="module">
     import { EditorState, Prec } from "https://esm.sh/@codemirror/state@6";
@@ -597,12 +968,18 @@
     import { syntaxHighlighting, HighlightStyle } from "https://esm.sh/@codemirror/language@6";
     import { tags } from "https://esm.sh/@lezer/highlight@1";
     import { apl } from "https://esm.sh/@codemirror/legacy-modes@6/mode/apl";
-    import { aplToJavaScript, G, global_category } from "./apl.js";
+    import { aplToJavaScript, G, global_category, isSceneNode, sceneToSvgElement } from "./apl.js";
 
     const baseAplToken = apl.token.bind(apl);
+    // Matches the tokenizer's own unquoted-string rule in apl.js
+    // (`/^#[0-9\p{L}\-]+/u`) so #str highlights as a string, not a comment.
+    const HASH_STRING_RE = /^#[0-9\p{L}\-]+/u;
     const aplModeNoHashComment = {
       ...apl,
       token(stream, state) {
+        if (stream.match(HASH_STRING_RE)) {
+          return "string-2";
+        }
         if (stream.peek() === "#") {
           stream.next();
           return null;
@@ -614,10 +991,22 @@
     const SAMPLE = [
       "A←2 3⍴⍳6",
       "A",
-      "+/A",
+      "+⌿A",
       "B←A+10",
       "⎕←B",
       "A∘.+A"
+    ].join("\n");
+
+    const GRAPHICS_SAMPLE = [
+      "⍝ shapes are plain data: {tag, attrs, children} - build them with",
+      "⍝ ordinary APL arrays, no SVG string wrangling needed",
+      "n←12 ⋄ cx←60 ⋄ cy←60 ⋄ r←50",
+      "ang←(○2×⍳n)÷n            ⍝ n angles around the circle",
+      "xs←cx+r×1○ang ⋄ ys←cy+r×2○ang",
+      "pts←⍉2 n⍴xs,ys           ⍝ n×2 matrix of points",
+      "ring←(⍠('fill' 'none')('stroke' '#2ea043')('stroke-width' 2))style(polygon pts)",
+      "dots←scatter pts         ⍝ one circle per point, for free",
+      "(120 120)svg(ring)(dots)"
     ].join("\n");
 
     const APL_ESCAPES = {
@@ -663,8 +1052,9 @@
       left: "⊣",
       right: "⊢",
       jot: "∘",
-      qcolon: "⍠",
-      qquote: "⍞",
+      object: "⍠",
+      quote: "⍞",
+      bind: "⍔",
       let: '←',
       reduce: "⌿",
       scan: "⍀",
@@ -674,21 +1064,156 @@
       goto: "→",
       encode: "⊤",
       decode: "⊥",
+      flip: "⊖",
+      format: "⍕",
+      execute: "⍎",
+      partition: "⊆",
+      member: "∊",
+      find: "⍷",
+      union: "∪",
+      intersect: "∩",
+      rank: "⍤",
     };
+
+    const PRIMITIVE_DOCS = [
+      { glyph: "+", name: "Plus", monadic: "Conjugate (identity): <code>+5</code> → 5", dyadic: "Addition: <code>2+3</code> → 5" },
+      { glyph: "-", name: "Minus", monadic: "Negate: <code>-5</code> → ¯5", dyadic: "Subtraction: <code>5-3</code> → 2" },
+      { glyph: "×", name: "Times", monadic: "Sign: <code>×¯3 4 0</code> → ¯1 1 0", dyadic: "Multiplication: <code>2×3</code> → 6" },
+      { glyph: "÷", name: "Divide", monadic: "Reciprocal: <code>÷4</code> → 0.25", dyadic: "Division: <code>6÷2</code> → 3" },
+      { glyph: "⌈", name: "Ceiling", monadic: "Round up: <code>⌈3.2</code> → 4", dyadic: "Maximum: <code>3⌈5</code> → 5" },
+      { glyph: "⌊", name: "Floor", monadic: "Round down: <code>⌊3.8</code> → 3", dyadic: "Minimum: <code>3⌊5</code> → 3" },
+      { glyph: "=", name: "Equals", dyadic: "Elementwise test: <code>2 3=2 4</code> → 1 0" },
+      { glyph: "≠", name: "Not equals", dyadic: "Elementwise test: <code>2 3≠2 4</code> → 0 1" },
+      { glyph: "<", name: "Less than", dyadic: "<code>2&lt;3</code> → 1" },
+      { glyph: ">", name: "Greater than", dyadic: "<code>2&gt;3</code> → 0" },
+      { glyph: "≤", name: "Less or equal", dyadic: "<code>2≤2</code> → 1" },
+      { glyph: "≥", name: "Greater or equal", dyadic: "<code>3≥2</code> → 1" },
+      { glyph: "|", name: "Residue", monadic: "Absolute value: <code>|¯5</code> → 5", dyadic: "Remainder: <code>3|10</code> → 1" },
+      { glyph: "⍴", name: "Rho", monadic: "Shape: <code>⍴2 3⍴⍳6</code> → 2 3", dyadic: "Reshape: <code>2 3⍴⍳6</code> → matrix" },
+      { glyph: "/", name: "Compress", dyadic: "Replicate/select: <code>1 0 1/1 2 3</code> → 1 3" },
+      { glyph: "⌿", name: "Reduce (operator)", dyadic: "Fold: <code>+⌿1 2 3</code> → 6" },
+      { glyph: "⍀", name: "Scan (operator)", dyadic: "Running fold: <code>+⍀1 2 3</code> → 1 3 6" },
+      { glyph: "⍨", name: "Selfie (operator)", monadic: "Both args = ⍵: <code>+⍨3</code> → 6", dyadic: "Swap args: <code>5-⍨2</code> → 3" },
+      { glyph: ",", name: "Comma", monadic: "Ravel: <code>,2 3⍴⍳6</code> → flat vector", dyadic: "Catenate: <code>1 2,3 4</code> → 1 2 3 4" },
+      { glyph: "⍪", name: "Double comma", dyadic: "Catenate along the first axis (table append)" },
+      { glyph: "⍳", name: "Iota", monadic: "Index generator: <code>⍳5</code> → 0 1 2 3 4", dyadic: "Index of: <code>10 20 30⍳20</code> → 1" },
+      { glyph: "⍸", name: "Where / interval index", monadic: "Indices where true: <code>⍸0 1 1 0</code> → 1 2", dyadic: "Interval index of value in boundaries" },
+      { glyph: "⍋", name: "Grade up", monadic: "Ascending sort indices: <code>⍋3 1 2</code> → 1 2 0" },
+      { glyph: "⍒", name: "Grade down", monadic: "Descending sort indices: <code>⍒3 1 2</code> → 0 2 1" },
+      { glyph: "⍣", name: "Power (operator)", dyadic: "Repeat n times: <code>(2×)⍣3⊢1</code> → 8" },
+      { glyph: "∇", name: "Self-reference", monadic: "Recursive call inside a dfn" },
+      { glyph: "≢", name: "Tally", monadic: "Length: <code>≢1 2 3</code> → 3", dyadic: "Not-match: <code>1 2≢1 2</code> → 0" },
+      { glyph: "⎕", name: "Quad", monadic: "Print/emit a value: <code>⎕←value</code>" },
+      { glyph: "⊢", name: "Right", monadic: "Identity: <code>⊢5</code> → 5", dyadic: "Right value: <code>1⊢2</code> → 2" },
+      { glyph: "⊣", name: "Left", monadic: "Identity: <code>⊣5</code> → 5", dyadic: "Left value: <code>1⊣2</code> → 1" },
+      { glyph: ".", name: "Dot (operator)", dyadic: "Inner/matrix product: <code>A+.×B</code>" },
+      { glyph: "∘", name: "Jot (operator)", dyadic: "Compose/bind; <code>∘.</code> builds an outer product" },
+      { glyph: "⍬", name: "Zilde", monadic: "Empty numeric vector" },
+      { glyph: "⌽", name: "Reverse / rotate (last axis)", monadic: "Reverse: <code>⌽1 2 3</code> → 3 2 1", dyadic: "Rotate: <code>2⌽1 2 3 4 5</code> → 3 4 5 1 2" },
+      { glyph: "⊖", name: "Reverse / rotate (first axis)", monadic: "Flip rows of a matrix", dyadic: "Rotate rows: <code>1⊖2 3⍴⍳6</code>" },
+      { glyph: "¨", name: "Each (operator)", monadic: "Apply per element: <code>(×∘2)¨1 2 3</code> → 2 4 6" },
+      { glyph: "*", name: "Exp", monadic: "e^x: <code>*1</code> → 2.718…", dyadic: "Power: <code>2*3</code> → 8" },
+      { glyph: "⍟", name: "Log", monadic: "Natural log: <code>⍟1</code> → 0", dyadic: "Log base ⍺: <code>2⍟8</code> → 3" },
+      { glyph: "?", name: "Deal / roll", monadic: "Random integer: <code>?6</code> → 0..5", dyadic: "Sample without replacement: <code>3?10</code>" },
+      { glyph: "≡", name: "Match", dyadic: "Structural equality: <code>1 2≡1 2</code> → 1" },
+      { glyph: "!", name: "Factorial", monadic: "<code>!5</code> → 120", dyadic: "Binomial coefficient: <code>2!5</code> → 10" },
+      { glyph: "∨", name: "Or", dyadic: "Logical or / GCD: <code>1∨0</code> → 1, <code>4∨6</code> → 2" },
+      { glyph: "∧", name: "And", dyadic: "Logical and / LCM: <code>1∧1</code> → 1, <code>4∧6</code> → 12" },
+      { glyph: "~", name: "Not", monadic: "Negation: <code>~0 1</code> → 1 0", dyadic: "Without: <code>1 2 3~2</code> → 1 3" },
+      { glyph: "⍲", name: "Nand", dyadic: "<code>1⍲1</code> → 0" },
+      { glyph: "⍱", name: "Nor", dyadic: "<code>0⍱0</code> → 1" },
+      { glyph: "⍉", name: "Transpose", monadic: "Reverse axes", dyadic: "Permute axes: <code>2 1⍉array</code>" },
+      { glyph: "⌷", name: "Squad (index)", dyadic: "Index into an array: <code>2 3⌷array</code>" },
+      { glyph: "⊂", name: "Enclose / partitioned enclose", monadic: "Box a value: <code>⊂1 2 3</code> → (1 2 3)", dyadic: "Group runs: <code>1 1 2 2⊂1 2 3 4</code> → (1 2)(3 4)" },
+      { glyph: "⊆", name: "Partition", dyadic: "Same grouping as dyadic ⊂: <code>1 1 2 2⊆1 2 3 4</code> → (1 2)(3 4)" },
+      { glyph: "⊃", name: "Pick", monadic: "First item: <code>⊃(1 2)(3 4)</code> → 1 2", dyadic: "Pick by index: <code>1⊃w</code>" },
+      { glyph: "@", name: "At (operator)", dyadic: "Amend at indices or mask: <code>f@indices</code>" },
+      { glyph: "↑", name: "Take", dyadic: "<code>3↑1 2 3 4 5</code> → 1 2 3" },
+      { glyph: "↓", name: "Drop", dyadic: "<code>2↓1 2 3 4 5</code> → 3 4 5" },
+      { glyph: "⍥", name: "Over (operator)", dyadic: "Apply g to both args, then f: <code>a f⍥g w</code>" },
+      { glyph: "⍠", name: "FFI: object builder", monadic: "Build a plain object from key/value pairs: <code>⍠('x' 1)('y' 2)</code>", dyadic: "Property get: <code>obj⍠'key'</code>" },
+      { glyph: "⍞", name: "FFI: quote a function", monadic: "Turn a function/operator into a plain value (no call) - lets it be stored, put in an array, or handed to JS: <code>⍞+</code>" },
+      { glyph: "⍔", name: "FFI: bind JS method (operator)", dyadic: "<code>obj⍔'method'</code> derives a function that calls <code>obj.method(...args)</code>. The args must not sit directly adjacent (they'd strand with the method name first) - either parenthesize, <code>(obj⍔'method')(args)</code>, or separate with ⊢: <code>obj⍔'method'⊢args</code>" },
+      { glyph: "○", name: "Circle (trig)", monadic: "π×⍵: <code>○1</code> → 3.14159", dyadic: "Circular fns: <code>1○0</code> → sin(0), <code>2○0</code> → cos(0)" },
+      { glyph: "⊤", name: "Encode", dyadic: "Mixed radix: <code>2 2 2⊤5</code> → 1 0 1" },
+      { glyph: "⊥", name: "Decode", dyadic: "Mixed radix: <code>2 2 2⊥1 0 1</code> → 5" },
+      { glyph: "⍕", name: "Format", monadic: "To display string: <code>⍕1 2 3</code> → \"1 2 3\"", dyadic: "Fixed decimals: <code>2⍕3.14159</code> → \"3.14\"" },
+      { glyph: "⍎", name: "Execute", monadic: "Evaluate an APL source string: <code>⍎'2+2'</code> → 4" },
+      { glyph: "∊", name: "Member / enlist", monadic: "Flatten all nesting: <code>∊(1 2)(3 4)</code> → 1 2 3 4", dyadic: "Membership: <code>3 9∊1 2 3</code> → 1 0" },
+      { glyph: "⍷", name: "Find", dyadic: "Locate a pattern: <code>1 2⍷1 2 3 1 2</code> → 1 0 0 1 0" },
+      { glyph: "∪", name: "Unique / union", monadic: "Remove duplicates: <code>∪1 2 2 3</code> → 1 2 3", dyadic: "Union: <code>1 2∪2 3</code> → 1 2 3" },
+      { glyph: "∩", name: "Intersection", dyadic: "<code>1 2 3∩2 3 4</code> → 2 3" },
+      { glyph: "⍤", name: "Rank (operator)", dyadic: "Apply f to subarrays of rank n: <code>f⍤n</code>" },
+      { glyph: "⌸", name: "Key (operator)", monadic: "Group own indices by value: <code>{⍺,≢⍵}⌸'mississippi'</code> → ('m' 1)('i' 4)('s' 4)('p' 2)", dyadic: "Group ⍵'s values by a classifier ⍺: <code>('a' 'b' 'a'){⍺ ⍵}⌸1 2 3</code> → ('a' 1 3)('b' 2)" }
+    ];
+
+    const GRAPHICS_DOCS = [
+      { name: "circle", sig: "(cx cy)circle r", desc: "Circle shape.", example: "(10 20)circle 5" },
+      { name: "rect", sig: "(x y)rect(width height)", desc: "Rectangle shape.", example: "(0 0)rect(40 20)" },
+      { name: "line", sig: "(x1 y1)line(x2 y2)", desc: "Line segment.", example: "(0 0)line(50 50)" },
+      { name: "polyline", sig: "polyline points", desc: "Open polyline from an n×2 point matrix.", example: "polyline 3 2⍴0 0 10 0 5 10" },
+      { name: "polygon", sig: "polygon points", desc: "Closed polygon from an n×2 point matrix.", example: "polygon 3 2⍴0 0 10 0 5 10" },
+      { name: "path", sig: "path d", desc: "Raw SVG path - escape hatch for the \"d\" attribute.", example: "path 'M0 0 L10 10'" },
+      { name: "text", sig: "(x y)text string", desc: "Text label.", example: "(10 10)text 'hello'" },
+      { name: "group", sig: "group children  /  attrs group children", desc: "Groups shapes into one node; the dyadic form also sets group-level attrs.", example: "group((0 0)circle 5)(1 1 rect 2 2)" },
+      { name: "svg", sig: "(width height)svg children", desc: "Top-level canvas wrapper - this is what the REPL renders as an image.", example: "(120 120)svg((0 0)circle 5)" },
+      { name: "style", sig: "attrs style shape", desc: "Merges extra SVG attributes into a shape (fill, stroke, stroke-width, transform...). Build <code>attrs</code> with ⍠ instead of growing this function's argument list.", example: "(⍠('fill' 'red'))style((0 0)circle 5)" },
+      { name: "scatter", sig: "scatter points  /  r scatter points", desc: "One circle per row of an n×2 point matrix - bulk plotting in a single call.", example: "scatter 2 2⍴0 0 1 1" }
+    ];
+
+    const FFI_EXAMPLES = [
+      {
+        title: "d3: a simple statistic",
+        desc: "Call a plain d3 function through ⍔. The data array must be enclosed (⊂) so it arrives as one argument, not spread as several.",
+        code: "(d3⍔#max)⊢⊂1 2 3 4 5"
+      },
+      {
+        title: "d3: color scale feeding our own style/circle",
+        desc: "d3.interpolateViridis(t) returns a CSS color string - build the attrs object with ⍠ and hand it to style, same as any hand-picked color.",
+        code: "(⍠(#fill((d3⍔#interpolateViridis)⊢⊂0.5)))style((0 0)circle 20)"
+      },
+      {
+        title: "Plot: a bar chart, no options object",
+        desc: "Plot.barY(data) returns a mark - and a mark has its own .plot() to render itself standalone, so no ⍠('marks' ...) wrapping is needed for a single-mark chart.",
+        code: "(Plot⍔#barY⊢⊂1 2 3 4 5)⍔#plot⊢⍬"
+      },
+      {
+        title: "Plot: a line chart",
+        desc: "Same shape as the bar chart above, with Plot.lineY instead.",
+        code: "(Plot⍔#lineY⊢⊂3 1 4 1 5 9 2 6)⍔#plot⊢⍬"
+      },
+      {
+        title: "⍞ + ⍔: an APL function as a JS callback",
+        desc: "⍞ turns a dfn into a plain value (the same JS closure, uncalled) so it can be handed to a higher-order JS method like Array.map. Note the callback receives (element, index) - inside the dfn, ⍺ is the index, not a left argument in the usual APL sense.",
+        code: "double←{2×⍵} ⋄ ((1 2 3)⍔#map)⊢⊂⍞double"
+      }
+    ];
 
     const repl = document.getElementById("repl");
     const statusEl = document.getElementById("status");
-    const helpPanel = document.getElementById("helpPanel");
+    const helpOverlay = document.getElementById("helpOverlay");
+    const helpCloseBtn = document.getElementById("helpCloseBtn");
+    const helpTabs = Array.from(document.querySelectorAll(".help-tab"));
+    const helpTabPanels = {
+      escapes: document.getElementById("helpTabEscapes"),
+      primitives: document.getElementById("helpTabPrimitives"),
+      graphics: document.getElementById("helpTabGraphics"),
+      ffi: document.getElementById("helpTabFFI")
+    };
     const helpGrid = document.getElementById("helpGrid");
+    const helpPrimitivesBody = document.getElementById("helpPrimitivesBody");
+    const helpGraphicsList = document.getElementById("helpGraphicsList");
+    const helpFFIList = document.getElementById("helpFFIList");
     const runBtn = document.getElementById("runBtn");
     const clearBtn = document.getElementById("clearBtn");
     const restartBtn = document.getElementById("restartBtn");
     const helpBtn = document.getElementById("helpBtn");
     const sampleBtn = document.getElementById("sampleBtn");
+    const graphicsSampleBtn = document.getElementById("graphicsSampleBtn");
     const themeSelect = document.getElementById("themeSelect");
 
     const THEME_STORAGE_KEY = "apljs-theme";
-    const THEMES = new Set(["phosphor", "amber", "teal-crt", "sunset-terminal", "blue-monitor"]);
+    const THEMES = new Set(["phosphor", "amber", "teal-crt", "sunset-terminal", "blue-monitor", "greenbar", "win31"]);
 
     const applyTheme = (themeName) => {
       const name = THEMES.has(themeName) ? themeName : "phosphor";
@@ -716,8 +1241,11 @@
     };
 
     let applyingEscape = false;
-    let cellCount = 0;
-    let active = null;
+    let executionCounter = 0;
+    let nextCellId = 0;
+    const cells = [];
+    let draftRecord = null;
+    let focusedRecord = null;
     const inputHistory = [];
     let historyCursor = 0;
     let historyDraft = "";
@@ -740,42 +1268,48 @@
     replRuntime = createRuntimeContext();
     replCategories = { ...global_category };
 
+    // Colors are var(--syntax-*)/var(--editor-*) (defined in the <style>
+    // block above, one set per theme) rather than hardcoded hex, so
+    // switching themes re-colors every already-open editor - CodeMirror's
+    // generated stylesheet just references the custom property, no JS
+    // reconfiguration of existing EditorView instances is needed.
     const highlight = HighlightStyle.define([
-      { tag: tags.keyword, color: "#90f0b1", fontWeight: "700" },
-      { tag: [tags.operator, tags.arithmeticOperator], color: "#ffbe71", fontWeight: "700" },
-      { tag: tags.number, color: "#d8ffaa" },
-      { tag: tags.string, color: "#6fe8c9" },
-      { tag: tags.comment, color: "#6f9277", fontStyle: "italic" },
-      { tag: tags.variableName, color: "#d7f7df" }
+      { tag: tags.keyword, color: "var(--syntax-keyword)", fontWeight: "700" },
+      { tag: [tags.operator, tags.arithmeticOperator], color: "var(--syntax-operator)", fontWeight: "700" },
+      { tag: tags.number, color: "var(--syntax-number)" },
+      { tag: tags.string, color: "var(--syntax-string)" },
+      { tag: tags.special(tags.string), color: "var(--syntax-string-alt)", fontStyle: "italic" },
+      { tag: tags.comment, color: "var(--syntax-comment)", fontStyle: "italic" },
+      { tag: tags.variableName, color: "var(--syntax-variable)" }
     ]);
 
     const editorTheme = EditorView.theme({
       "&": {
-        backgroundColor: "#0a120c",
-        color: "#d7f7df"
+        backgroundColor: "var(--editor-bg)",
+        color: "var(--editor-fg)"
       },
       ".cm-content": {
-        caretColor: "#9ffab4",
+        caretColor: "var(--editor-caret)",
         lineHeight: "1.45"
       },
       ".cm-cursor, .cm-dropCursor": {
-        borderLeftColor: "#9ffab4"
+        borderLeftColor: "var(--editor-caret)"
       },
       ".cm-gutters": {
-        color: "#7fa989",
-        borderRight: "1px solid #1f3423",
-        background: "#0c140d"
+        color: "var(--editor-gutter-fg)",
+        borderRight: "1px solid var(--editor-gutter-border)",
+        background: "var(--editor-gutter-bg)"
       },
       ".cm-activeLine": {
-        backgroundColor: "rgba(134, 240, 158, 0.08)"
+        backgroundColor: "var(--editor-active-line)"
       },
       ".cm-activeLineGutter": {
-        backgroundColor: "rgba(134, 240, 158, 0.12)"
+        backgroundColor: "var(--editor-active-line-gutter)"
       },
       ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
-        backgroundColor: "rgba(159, 250, 180, 0.22)"
+        backgroundColor: "var(--editor-selection)"
       }
-    }, { dark: true });
+    });
 
     const formatValue = (value) => {
       if (value === undefined) {
@@ -830,7 +1364,7 @@
 
     const isRectangularArray = (value) => {
       if (!Array.isArray(value)) {
-        return true;
+        return isPrimitive(value);
       }
       if (value.length === 0) {
         return true;
@@ -951,6 +1485,13 @@
     };
 
     const renderSvgMaybe = (host, value) => {
+      // A cell result that is itself a real DOM node - e.g. what
+      // Plot.plot(...) returns (an <svg>, or a <figure> wrapping one plus a
+      // legend/caption) - gets displayed as-is, no matter which library
+      // built it.
+      if (value instanceof Element) {
+        return appendSvgNode(host, value);
+      }
       if (value && typeof value === "object") {
         if (value.node instanceof SVGElement) {
           const root = value.node instanceof SVGSVGElement ? value.node : value.node.ownerSVGElement;
@@ -973,7 +1514,30 @@
       return renderSvgStringMaybe(host, value);
     };
 
-    const appendOutputCell = (kind, value) => {
+    const renderSceneMaybe = (host, value) => {
+      if (!isSceneNode(value)) {
+        return false;
+      }
+      const root = value.tag === "svg"
+        ? value
+        : { tag: "svg", attrs: { width: 300, height: 300, viewBox: "0 0 300 300" }, children: [value] };
+      try {
+        return appendSvgNode(host, sceneToSvgElement(root));
+      } catch (error) {
+        return false;
+      }
+    };
+
+    const renderSceneListMaybe = (host, value) => {
+      if (!Array.isArray(value) || value.length === 0 || !value.every(isSceneNode)) {
+        return false;
+      }
+      // Treat the list as an implicit group so every shape shares one
+      // coordinate space/canvas - same as wrapping them in `group` by hand.
+      return renderSceneMaybe(host, { tag: "g", children: value });
+    };
+
+    const buildOutputCell = (kind, value) => {
       const cell = document.createElement("article");
       const className = kind === "error" ? "cell cell-output cell-error" : "cell cell-output";
       cell.className = className;
@@ -993,8 +1557,9 @@
         body.appendChild(pre);
       } else if (Array.isArray(value) && (isVector(value) || isMatrix(value))) {
         renderTable(body, value);
+      } else if (Array.isArray(value) && renderSceneListMaybe(body, value)) {
       } else if (Array.isArray(value) && renderTensor(body, value)) {
-      } else if (!renderSvgMaybe(body, value)) {
+      } else if (!renderSceneMaybe(body, value) && !renderSvgMaybe(body, value)) {
         const pre = document.createElement("pre");
         pre.className = "result-pre";
         pre.textContent = formatValue(value);
@@ -1003,98 +1568,119 @@
 
       cell.appendChild(head);
       cell.appendChild(body);
-      repl.appendChild(cell);
-      cell.scrollIntoView({ behavior: "smooth", block: "end" });
+      return cell;
     };
 
-    const finalizeActiveInputAsHistory = (codeText, jsText) => {
-      const oldCell = active && active.cell;
-      if (!oldCell) {
-        return;
-      }
+    const removeOutputsFor = (record) => {
+      record.outputEls.forEach((el) => el.remove());
+      record.outputEls = [];
+    };
 
-      if (oldCell._focusEditorHandler) {
-        oldCell.removeEventListener("mousedown", oldCell._focusEditorHandler);
-        oldCell._focusEditorHandler = null;
-      }
+    const insertOutputsAfter = (refEl, elements) => {
+      let cursor = refEl;
+      elements.forEach((el) => {
+        cursor.insertAdjacentElement("afterend", el);
+        cursor = el;
+      });
+    };
 
-      active.editor.destroy();
-
-      oldCell.className = "cell cell-history";
-      oldCell.innerHTML = "";
-
+    // Rebuilds a cell's head (title + JS/copy/delete actions) from scratch -
+    // called on creation and after every run, since a cell can go from
+    // never-run to run (or from erroring to succeeding) many times over its
+    // life. The editor/mount below the head is never touched here.
+    const renderCellHead = (record) => {
+      const oldHead = record.cellEl.querySelector(":scope > .cell-head");
       const head = document.createElement("div");
       head.className = "cell-head";
 
       const title = document.createElement("span");
-      title.textContent = `Input #${cellCount}`;
+      title.textContent = record.execCount ? `Input #${record.execCount}` : "Input";
+      head.appendChild(title);
 
-      const actions = document.createElement("div");
-      actions.className = "cell-head-actions";
+      if (record.execCount) {
+        const actions = document.createElement("div");
+        actions.className = "cell-head-actions";
 
-      const jsButton = document.createElement("button");
-      jsButton.className = "history-js-btn";
-      jsButton.type = "button";
-      jsButton.textContent = "JS";
+        const jsButton = document.createElement("button");
+        jsButton.className = "history-js-btn";
+        jsButton.type = "button";
+        jsButton.textContent = "JS";
+        if (!record.lastJsText) {
+          jsButton.disabled = true;
+          jsButton.title = "No JavaScript generated";
+        } else {
+          jsButton.addEventListener("click", () => {
+            record.jsPre.classList.toggle("is-hidden");
+          });
+        }
 
-      const copyButton = document.createElement("button");
-      copyButton.className = "history-copy-btn";
-      copyButton.type = "button";
-      copyButton.textContent = "📋";
-      copyButton.setAttribute("aria-label", "Copy input");
-      copyButton.title = "Copy input";
-
-      const body = document.createElement("div");
-      body.className = "cell-body";
-      const pre = document.createElement("pre");
-      pre.className = "history-code";
-      pre.textContent = codeText;
-      body.appendChild(pre);
-
-      const jsPre = document.createElement("pre");
-      jsPre.className = "history-js is-hidden";
-      jsPre.textContent = jsText || "JavaScript unavailable due to transpilation error.";
-
-      if (!jsText) {
-        jsButton.disabled = true;
-        jsButton.title = "No JavaScript generated";
-      } else {
-        jsButton.addEventListener("click", () => {
-          jsPre.classList.toggle("is-hidden");
+        const copyButton = document.createElement("button");
+        copyButton.className = "history-copy-btn";
+        copyButton.type = "button";
+        copyButton.textContent = "📋";
+        copyButton.setAttribute("aria-label", "Copy input");
+        copyButton.title = "Copy input";
+        copyButton.addEventListener("click", async () => {
+          const textToCopy = record.editor.state.doc.toString();
+          try {
+            if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+              await navigator.clipboard.writeText(textToCopy);
+            } else {
+              const textarea = document.createElement("textarea");
+              textarea.value = textToCopy;
+              textarea.setAttribute("readonly", "");
+              textarea.style.position = "fixed";
+              textarea.style.opacity = "0";
+              document.body.appendChild(textarea);
+              textarea.select();
+              document.execCommand("copy");
+              document.body.removeChild(textarea);
+            }
+            setStatus(`Copied Input #${record.execCount} to clipboard.`);
+          } catch (error) {
+            setStatus("Clipboard copy failed.");
+          }
         });
+
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "history-delete-btn";
+        deleteButton.type = "button";
+        deleteButton.textContent = "🗑";
+        deleteButton.setAttribute("aria-label", "Delete cell");
+        deleteButton.title = "Delete this cell and its output";
+        deleteButton.addEventListener("click", () => {
+          deleteCell(record);
+        });
+
+        actions.appendChild(jsButton);
+        actions.appendChild(copyButton);
+        actions.appendChild(deleteButton);
+        head.appendChild(actions);
       }
 
-      copyButton.addEventListener("click", async () => {
-        const textToCopy = codeText || "";
-        try {
-          if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-            await navigator.clipboard.writeText(textToCopy);
-          } else {
-            const textarea = document.createElement("textarea");
-            textarea.value = textToCopy;
-            textarea.setAttribute("readonly", "");
-            textarea.style.position = "fixed";
-            textarea.style.opacity = "0";
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand("copy");
-            document.body.removeChild(textarea);
-          }
-          setStatus(`Copied Input #${cellCount} to clipboard.`);
-        } catch (error) {
-          setStatus("Clipboard copy failed.");
-        }
-      });
+      if (oldHead) {
+        oldHead.replaceWith(head);
+      } else {
+        record.cellEl.insertBefore(head, record.cellEl.firstChild);
+      }
+    };
 
-      actions.appendChild(jsButton);
-      actions.appendChild(copyButton);
-      head.appendChild(title);
-      head.appendChild(actions);
-      body.appendChild(jsPre);
-
-      oldCell.appendChild(head);
-      oldCell.appendChild(body);
-      active = null;
+    const deleteCell = (record) => {
+      if (record.isDraft) {
+        return;
+      }
+      const label = record.execCount;
+      removeOutputsFor(record);
+      record.editor.destroy();
+      record.cellEl.remove();
+      const idx = cells.indexOf(record);
+      if (idx !== -1) {
+        cells.splice(idx, 1);
+      }
+      if (focusedRecord === record) {
+        focusedRecord = draftRecord;
+      }
+      setStatus(`Deleted input #${label}. (Runtime state from it, if any, is unaffected - use Restart Session for a clean slate.)`);
     };
 
     const expandEscapeAtCursor = (view) => {
@@ -1124,12 +1710,12 @@
       return true;
     };
 
-    const runCurrentCell = () => {
-      if (!active || !active.editor) {
+    const runCell = (record) => {
+      if (!record || !record.editor) {
         return true;
       }
 
-      const source = active.editor.state.doc.toString().trimEnd();
+      const source = record.editor.state.doc.toString().trimEnd();
       if (!source.trim()) {
         setStatus("Type APL code before running.");
         return true;
@@ -1149,35 +1735,53 @@
       historyCursor = inputHistory.length;
       historyDraft = "";
 
-      cellCount += 1;
-      finalizeActiveInputAsHistory(source, jsCodeFormatted ?? jsCode);
+      executionCounter += 1;
+      record.execCount = executionCounter;
+      record.lastJsText = transpileError ? null : (jsCodeFormatted ?? jsCode);
+      record.jsPre.textContent = record.lastJsText || "JavaScript unavailable due to transpilation error.";
+      record.jsPre.classList.add("is-hidden");
+      renderCellHead(record);
+
+      removeOutputsFor(record);
+      const newOutputs = [];
 
       if (transpileError) {
-        appendOutputCell("error", transpileError instanceof Error ? transpileError.message : String(transpileError));
+        newOutputs.push(buildOutputCell("error", transpileError instanceof Error ? transpileError.message : String(transpileError)));
         setStatus("Execution failed.");
-        createInputCell();
-        return true;
-      }
+      } else {
+        try {
+          lastEmissions = [];
+          const fn = new Function("G", jsCode);
+          const result = fn(replRuntime);
 
-      try {
-        lastEmissions = [];
-        const fn = new Function("G", jsCode);
-        const result = fn(replRuntime);
+          lastEmissions.forEach((item) => newOutputs.push(buildOutputCell("emit", item)));
+          if (result !== undefined) {
+            newOutputs.push(buildOutputCell("result", result));
+          }
 
-        lastEmissions.forEach((item) => appendOutputCell("emit", item));
-        if (result !== undefined) {
-          appendOutputCell("result", result);
+          setStatus(`Executed input #${record.execCount}.`);
+        } catch (error) {
+          newOutputs.push(buildOutputCell("error", error instanceof Error ? error.message : String(error)));
+          setStatus("Execution failed.");
         }
-
-        setStatus(`Executed input #${cellCount}.`);
-      } catch (error) {
-        appendOutputCell("error", error instanceof Error ? error.message : String(error));
-        setStatus("Execution failed.");
       }
 
-      createInputCell();
+      insertOutputsAfter(record.cellEl, newOutputs);
+      record.outputEls = newOutputs;
+
+      if (record.isDraft) {
+        record.isDraft = false;
+        record.cellEl.classList.remove("cell-input");
+        record.cellEl.classList.add("cell-history");
+        createInputCell();
+      }
+
+      const scrollTarget = newOutputs.length ? newOutputs[newOutputs.length - 1] : record.cellEl;
+      scrollTarget.scrollIntoView({ behavior: "smooth", block: "end" });
       return true;
     };
+
+    const runCurrentCell = () => runCell(focusedRecord || draftRecord);
 
     const setStatus = (text) => {
       statusEl.textContent = text;
@@ -1250,19 +1854,29 @@
       const cell = document.createElement("article");
       cell.className = "cell cell-input";
 
-      const head = document.createElement("div");
-      head.className = "cell-head";
-      head.textContent = "Input";
-
       const body = document.createElement("div");
       body.className = "cell-body";
 
       const mount = document.createElement("div");
       body.appendChild(mount);
 
-      cell.appendChild(head);
+      const jsPre = document.createElement("pre");
+      jsPre.className = "history-js is-hidden";
+      body.appendChild(jsPre);
+
       cell.appendChild(body);
       repl.appendChild(cell);
+
+      const record = {
+        id: nextCellId++,
+        cellEl: cell,
+        editor: null,
+        jsPre,
+        outputEls: [],
+        execCount: 0,
+        lastJsText: null,
+        isDraft: true
+      };
 
       const editor = new EditorView({
         parent: mount,
@@ -1274,23 +1888,27 @@
             Prec.highest(keymap.of([
               {
                 key: "Shift-Enter",
-                run: runCurrentCell
+                run: () => runCell(record)
               },
               {
                 key: "Ctrl-Enter",
-                run: runCurrentCell
+                run: () => runCell(record)
               },
               {
                 key: "Mod-Enter",
-                run: runCurrentCell
+                run: () => runCell(record)
               },
               {
+                // History recall (arrow keys) only makes sense on the
+                // trailing draft cell - once a cell has run, it already
+                // holds a specific past input, so arrows just move the
+                // cursor as normal (returning false lets that fall through).
                 key: "ArrowUp",
-                run: (view) => navigateHistory(view, "up")
+                run: (view) => (record.isDraft ? navigateHistory(view, "up") : false)
               },
               {
                 key: "ArrowDown",
-                run: (view) => navigateHistory(view, "down")
+                run: (view) => (record.isDraft ? navigateHistory(view, "down") : false)
               }
             ])),
             keymap.of([
@@ -1308,6 +1926,9 @@
           ]
         })
       });
+      record.editor = editor;
+
+      renderCellHead(record);
 
       const focusEditorHandler = (event) => {
         if (event.target instanceof Element && event.target.closest("button")) {
@@ -1321,22 +1942,27 @@
       };
 
       cell.addEventListener("mousedown", focusEditorHandler);
-      cell._focusEditorHandler = focusEditorHandler;
+      cell.addEventListener("focusin", () => {
+        focusedRecord = record;
+      });
 
-      active = { cell, editor };
+      cells.push(record);
+      draftRecord = record;
+      focusedRecord = record;
       historyCursor = inputHistory.length;
       historyDraft = initialText;
       requestAnimationFrame(() => editor.focus());
       cell.scrollIntoView({ behavior: "smooth", block: "end" });
+      return record;
     };
 
     const clearHistory = () => {
-      if (active && active.editor) {
-        active.editor.destroy();
-      }
+      cells.forEach((record) => record.editor.destroy());
+      cells.length = 0;
       repl.innerHTML = "";
-      cellCount = 0;
-      active = null;
+      executionCounter = 0;
+      draftRecord = null;
+      focusedRecord = null;
       lastEmissions = [];
       historyCursor = inputHistory.length;
       historyDraft = "";
@@ -1346,12 +1972,12 @@
     };
 
     const restartSession = () => {
-      if (active && active.editor) {
-        active.editor.destroy();
-      }
+      cells.forEach((record) => record.editor.destroy());
+      cells.length = 0;
       repl.innerHTML = "";
-      cellCount = 0;
-      active = null;
+      executionCounter = 0;
+      draftRecord = null;
+      focusedRecord = null;
       lastEmissions = [];
       inputHistory.length = 0;
       historyCursor = 0;
@@ -1373,6 +1999,89 @@
       });
     };
 
+    const buildPrimitivesTable = () => {
+      helpPrimitivesBody.innerHTML = "";
+      PRIMITIVE_DOCS.forEach((entry) => {
+        const tr = document.createElement("tr");
+
+        const glyphTd = document.createElement("td");
+        glyphTd.className = "glyph-cell";
+        glyphTd.textContent = entry.glyph;
+
+        const nameTd = document.createElement("td");
+        nameTd.textContent = entry.name;
+
+        const monTd = document.createElement("td");
+        monTd.innerHTML = entry.monadic || "—";
+
+        const dyTd = document.createElement("td");
+        dyTd.innerHTML = entry.dyadic || "—";
+
+        tr.append(glyphTd, nameTd, monTd, dyTd);
+        helpPrimitivesBody.appendChild(tr);
+      });
+    };
+
+    const buildGraphicsDocs = () => {
+      helpGraphicsList.innerHTML = "";
+      GRAPHICS_DOCS.forEach((entry) => {
+        const item = document.createElement("div");
+        item.className = "help-graphics-item";
+
+        const title = document.createElement("h3");
+        title.textContent = entry.name;
+
+        const sig = document.createElement("p");
+        sig.innerHTML = `<span class="help-code">${entry.sig}</span>`;
+
+        const desc = document.createElement("p");
+        desc.innerHTML = entry.desc;
+
+        const example = document.createElement("p");
+        example.innerHTML = `Example: <span class="help-code">${entry.example}</span>`;
+
+        item.append(title, sig, desc, example);
+        helpGraphicsList.appendChild(item);
+      });
+    };
+
+    const buildFFIExamples = () => {
+      helpFFIList.innerHTML = "";
+      FFI_EXAMPLES.forEach((entry) => {
+        const item = document.createElement("div");
+        item.className = "help-graphics-item";
+
+        const title = document.createElement("h3");
+        title.textContent = entry.title;
+
+        const desc = document.createElement("p");
+        desc.innerHTML = entry.desc;
+
+        const code = document.createElement("p");
+        code.innerHTML = `<span class="help-code">${entry.code}</span>`;
+
+        item.append(title, desc, code);
+        helpFFIList.appendChild(item);
+      });
+    };
+
+    const setHelpTab = (tabName) => {
+      helpTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === tabName));
+      Object.entries(helpTabPanels).forEach(([name, panel]) => {
+        panel.classList.toggle("active", name === tabName);
+      });
+    };
+
+    const openHelp = () => {
+      helpOverlay.classList.add("open");
+      helpOverlay.setAttribute("aria-hidden", "false");
+    };
+
+    const closeHelp = () => {
+      helpOverlay.classList.remove("open");
+      helpOverlay.setAttribute("aria-hidden", "true");
+    };
+
     runBtn.addEventListener("click", () => runCurrentCell());
 
     clearBtn.addEventListener("click", () => {
@@ -1384,25 +2093,59 @@
     });
 
     helpBtn.addEventListener("click", () => {
-      const open = !helpPanel.classList.contains("open");
-      helpPanel.classList.toggle("open", open);
-      helpPanel.setAttribute("aria-hidden", String(!open));
+      openHelp();
+    });
+
+    helpCloseBtn.addEventListener("click", () => {
+      closeHelp();
+    });
+
+    helpOverlay.addEventListener("mousedown", (event) => {
+      if (event.target === helpOverlay) {
+        closeHelp();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && helpOverlay.classList.contains("open")) {
+        closeHelp();
+      }
+    });
+
+    helpTabs.forEach((tab) => {
+      tab.addEventListener("click", () => setHelpTab(tab.dataset.tab));
     });
 
     sampleBtn.addEventListener("click", () => {
-      if (!active || !active.editor) {
+      if (!draftRecord || !draftRecord.editor) {
         createInputCell(SAMPLE);
         return;
       }
-      active.editor.dispatch({
+      draftRecord.editor.dispatch({
         changes: {
           from: 0,
-          to: active.editor.state.doc.length,
+          to: draftRecord.editor.state.doc.length,
           insert: SAMPLE
         }
       });
-      active.editor.focus();
+      draftRecord.editor.focus();
       setStatus("Sample inserted in the current input cell.");
+    });
+
+    graphicsSampleBtn.addEventListener("click", () => {
+      if (!draftRecord || !draftRecord.editor) {
+        createInputCell(GRAPHICS_SAMPLE);
+        return;
+      }
+      draftRecord.editor.dispatch({
+        changes: {
+          from: 0,
+          to: draftRecord.editor.state.doc.length,
+          insert: GRAPHICS_SAMPLE
+        }
+      });
+      draftRecord.editor.focus();
+      setStatus("Graphics sample inserted in the current input cell.");
     });
 
     themeSelect.addEventListener("change", () => {
@@ -1412,6 +2155,9 @@
     applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || "phosphor");
 
     buildHelp();
+    buildPrimitivesTable();
+    buildGraphicsDocs();
+    buildFFIExamples();
     createInputCell();
   </script>
 </body>
