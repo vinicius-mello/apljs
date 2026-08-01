@@ -698,7 +698,7 @@
       background: var(--panel);
       box-shadow: var(--shadow);
       overflow: hidden;
-      color: #b8d6c0;
+      color: var(--ink);
     }
 
     .help-modal-head {
@@ -989,12 +989,39 @@
     };
 
     const SAMPLE = [
-      "A←2 3⍴⍳6",
-      "A",
-      "+⌿A",
-      "B←A+10",
-      "⎕←B",
-      "A∘.+A"
+      "⍝ Collatz conjecture: repeatedly halve even numbers, or triple and",
+      "⍝ add one to odd ones, until reaching 1. h recurses via ∇.",
+      "h←{",
+      "  1=⍵: ,1                ⍝ base case: sequence ends at 1",
+      "  2|⍵:⍵,∇ 1+3×⍵          ⍝ odd: keep ⍵, recurse on 3⍵+1",
+      "      ⍵,∇ ⍵÷2            ⍝ even: keep ⍵, recurse on ⍵÷2",
+      "}",
+      "⎕←h 9                     ⍝ the Collatz sequence starting at 9",
+      "",
+      "⍝ A hand-rolled 'apply n times' operator: (⍺⍺ pow ⍹) is a derived",
+      "⍝ function that applies ⍺⍺ to its argument ⍹ times, recursing on",
+      "⍝ the operator itself via ∇∇ (⍶/⍹ are ⍺⍺/⍵⍵ used as plain values).",
+      "pow←{",
+      "  ⍹=0:⍵                  ⍝ ⍹ is 0: nothing left to apply",
+      "  ⍺⍺∇∇(⍹-1)⍺⍺ ⍵          ⍝ otherwise: apply ⍺⍺ once, recurse with ⍹-1",
+      "}",
+      "",
+      "incr←{1+⍵}                 ⍝ define an increment function",
+      "⎕←(incr pow 3) 5          ⍝ apply it 3 times to 5 → 8",
+      "",
+      "⍝ Factorial as a fork/train: ⍳⍵ gives 0..⍵-1, 1∘+ shifts that to",
+      "⍝ 1..⍵, and ×⌿ folds the result with times.",
+      "fac←×⌿(1∘+⍳)",
+      "⎕←fac 5                   ⍝ 5! → 120",
+      "",
+      "⍝ The quadratic formula: destructure ⍵ into a b c, then compute",
+      "⍝ (-b ± √(b²-4ac)) ÷ 2a. (+,-) is a fork producing both roots at",
+      "⍝ once; ÷⍨ is ÷ with its arguments swapped (a 'selfie').",
+      "qf←{",
+      "  a b c←⍵",
+      "  (2×a) ÷⍨ (-b) (+,-) √ (b*2) - 4×a×c",
+      "}",
+      "qf 1 ¯1 ¯1                 ⍝ roots of x²-x-1: the golden ratio and its conjugate"
     ].join("\n");
 
     const GRAPHICS_SAMPLE = [
@@ -1006,7 +1033,20 @@
       "pts←⍉2 n⍴xs,ys           ⍝ n×2 matrix of points",
       "ring←(⍠('fill' 'none')('stroke' '#2ea043')('stroke-width' 2))style(polygon pts)",
       "dots←scatter pts         ⍝ one circle per point, for free",
-      "(120 120)svg(ring)(dots)"
+      "⎕←(120 120)svg(ring)(dots)",
+      "",
+      "⍝ Observable Plot, via ⍔: each mark has its own .plot() to render",
+      "⍝ itself standalone, so ⎕← below prints one chart per line.",
+      "vals←2 4 6 3 8 5 7",
+      "⎕←(Plot⍔#barY⊢⊂vals)⍔#plot⊢⍬     ⍝ bar chart",
+      "⎕←(Plot⍔#lineY⊢⊂vals)⍔#plot⊢⍬    ⍝ line chart",
+      "⎕←(Plot⍔#dotY⊢⊂vals)⍔#plot⊢⍬     ⍝ dot/scatter chart",
+      "",
+      "⍝ Plot.plot(options) combines several marks into one chart - the",
+      "⍝ options object is built with ⍠, same as any other JS object here.",
+      "bars←Plot⍔#barY⊢⊂vals",
+      "line←Plot⍔#lineY⊢⊂vals",
+      "(Plot⍔#plot)⊢⊂⍠('marks' bars line)"
     ].join("\n");
 
     const APL_ESCAPES = {
@@ -1073,6 +1113,8 @@
       union: "∪",
       intersect: "∩",
       rank: "⍤",
+      key: "⌸",
+      sqrt: "√",
     };
 
     const PRIMITIVE_DOCS = [
@@ -1093,7 +1135,7 @@
       { glyph: "/", name: "Compress", dyadic: "Replicate/select: <code>1 0 1/1 2 3</code> → 1 3" },
       { glyph: "⌿", name: "Reduce (operator)", dyadic: "Fold: <code>+⌿1 2 3</code> → 6" },
       { glyph: "⍀", name: "Scan (operator)", dyadic: "Running fold: <code>+⍀1 2 3</code> → 1 3 6" },
-      { glyph: "⍨", name: "Selfie (operator)", monadic: "Both args = ⍵: <code>+⍨3</code> → 6", dyadic: "Swap args: <code>5-⍨2</code> → 3" },
+      { glyph: "⍨", name: "Selfie (operator)", monadic: "Both args = ⍵: <code>+⍨3</code> → 6", dyadic: "Swap args: <code>5-⍨2</code> → ¯3" },
       { glyph: ",", name: "Comma", monadic: "Ravel: <code>,2 3⍴⍳6</code> → flat vector", dyadic: "Catenate: <code>1 2,3 4</code> → 1 2 3 4" },
       { glyph: "⍪", name: "Double comma", dyadic: "Catenate along the first axis (table append)" },
       { glyph: "⍳", name: "Iota", monadic: "Index generator: <code>⍳5</code> → 0 1 2 3 4", dyadic: "Index of: <code>10 20 30⍳20</code> → 1" },
@@ -1114,11 +1156,12 @@
       { glyph: "¨", name: "Each (operator)", monadic: "Apply per element: <code>(×∘2)¨1 2 3</code> → 2 4 6" },
       { glyph: "*", name: "Exp", monadic: "e^x: <code>*1</code> → 2.718…", dyadic: "Power: <code>2*3</code> → 8" },
       { glyph: "⍟", name: "Log", monadic: "Natural log: <code>⍟1</code> → 0", dyadic: "Log base ⍺: <code>2⍟8</code> → 3" },
+      { glyph: "√", name: "Sqrt", monadic: "Square root: <code>√9</code> → 3", dyadic: "⍺-th root of ⍵: <code>3√8</code> → 2" },
       { glyph: "?", name: "Deal / roll", monadic: "Random integer: <code>?6</code> → 0..5", dyadic: "Sample without replacement: <code>3?10</code>" },
       { glyph: "≡", name: "Match", dyadic: "Structural equality: <code>1 2≡1 2</code> → 1" },
       { glyph: "!", name: "Factorial", monadic: "<code>!5</code> → 120", dyadic: "Binomial coefficient: <code>2!5</code> → 10" },
-      { glyph: "∨", name: "Or", dyadic: "Logical or / GCD: <code>1∨0</code> → 1, <code>4∨6</code> → 2" },
-      { glyph: "∧", name: "And", dyadic: "Logical and / LCM: <code>1∧1</code> → 1, <code>4∧6</code> → 12" },
+      { glyph: "∨", name: "Or", monadic: "Descending sort: <code>∨3 1 2</code> → 3 2 1", dyadic: "Logical or / GCD: <code>1∨0</code> → 1, <code>4∨6</code> → 2" },
+      { glyph: "∧", name: "And", monadic: "Ascending sort: <code>∧3 1 2</code> → 1 2 3", dyadic: "Logical and / LCM: <code>1∧1</code> → 1, <code>4∧6</code> → 12" },
       { glyph: "~", name: "Not", monadic: "Negation: <code>~0 1</code> → 1 0", dyadic: "Without: <code>1 2 3~2</code> → 1 3" },
       { glyph: "⍲", name: "Nand", dyadic: "<code>1⍲1</code> → 0" },
       { glyph: "⍱", name: "Nor", dyadic: "<code>0⍱0</code> → 1" },

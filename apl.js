@@ -96,6 +96,7 @@ const global_category = {
   '¨': { category:'M', name: 'each' },
   '*': { category:'F', name: 'exp' },
   '⍟': { category:'F', name: 'log' },
+  '√': { category:'F', name: 'sqrt' },
   '?' : { category:'F', name: 'deal' },
   '≡': { category:'F', name: 'match' },
   '!': { category:'F', name: 'factorial' },
@@ -1090,18 +1091,22 @@ const G = {
   log: (w, a) => {
     return mdfunc(x => Math.log(x), (x,y) => Math.log(x) / Math.log(y), w, a);
   },
+  sqrt: (w, a) => {
+    // Monadic: square root of ⍵. Dyadic: ⍺√⍵ is the ⍺-th root of ⍵.
+    return mdfunc(x => Math.sqrt(x), (x,y) => Math.pow(x, 1 / y), w, a);
+  },
   factorial: (w, a) => {
     return mdfunc(x => factorial(x), (x,y) => binomial(x, y), w, a);
   },
   or: (w, a) => {
     if (a===undefined) {
-      return w.sort((a, b)=>-totalCompare(a, b))
+      return [...w].sort((a, b)=>-totalCompare(a, b))
     }
     return mdfunc(x => x, (x,y) => gcd(x, y), w, a);
   },
   and: (w, a) => {
     if (a===undefined) {
-      return w.sort(totalCompare);
+      return [...w].sort(totalCompare);
     }
     return mdfunc(x => x, (x,y) => lcm(x, y), w, a);
   },
@@ -1711,6 +1716,18 @@ const breakExpressions = (tokens, from) => {
   return [expressions, i];
 }
 
+// Category lists checked by reduceStack's belong() calls below, hoisted to
+// module scope so they're allocated once instead of on every token shift
+// (reduceStack runs once per token, potentially several times per token).
+const CAT_V_F_D_M = ['V', 'F', 'D', 'M'];
+const CAT_BOUNDARY_F = ['F', '(', '←', 'Edge', ':'];
+const CAT_BOUNDARY_MVF = ['M', 'V', 'F', '(', '←', 'Edge', ':'];
+const CAT_BOUNDARY_MF = ['M', 'F', '(', '←', 'Edge', ':'];
+const CAT_F_V = ['F', 'V'];
+const CAT_BOUNDARY = ['(', '←', 'Edge', ':'];
+const CAT_BOUNDARY_MF_NOCOLON = ['(', '←', 'M', 'F', 'Edge'];
+const CAT_V_CLOSEPAREN = ['V', ')'];
+
 const parseExpression = (expression, scope) => {
   const stack = [];
 
@@ -1742,9 +1759,9 @@ const parseExpression = (expression, scope) => {
       // if(ABCD) {
       //   console.log('Stack top 4:', A, B, C, D); 
       // }
-      if (ABC && 
-        A.category === '(' && 
-        belong(B.category, ['V','F','D', 'M']) &&
+      if (ABC &&
+        A.category === '(' &&
+        belong(B.category, CAT_V_F_D_M) &&
         C.category === ')'
       ) {
         //console.log('Found parentheses:', B.text);
@@ -1755,7 +1772,7 @@ const parseExpression = (expression, scope) => {
       }
       if (AB &&
         A.category === 'Q' &&
-        belong(B.category, ['F', 'M', 'D', 'V'])
+        belong(B.category, CAT_V_F_D_M)
       ) {
         // ⍞ quotes whatever sits to its right into a plain value - same
         // generated code, just relabeled so it can be stored, put in an
@@ -1765,7 +1782,7 @@ const parseExpression = (expression, scope) => {
         continue;
       }
       if (ABC &&
-        !belong(A.category, ['V', ')']) &&
+        !belong(A.category, CAT_V_CLOSEPAREN) &&
         B.category === 'V' &&
         C.category === 'V'
       ) {
@@ -1784,7 +1801,7 @@ const parseExpression = (expression, scope) => {
         continue;
       }
       if(ABC &&
-        belong(A.category, ['F', '(', '←', 'Edge', ':']) &&
+        belong(A.category, CAT_BOUNDARY_F) &&
         B.category === 'F' &&
         C.category === 'V'
       ) {
@@ -1796,7 +1813,7 @@ const parseExpression = (expression, scope) => {
         continue;
       }
       if(ABCD &&
-        belong(A.category, ['M', 'V', 'F', '(', '←', 'Edge', ':']) &&
+        belong(A.category, CAT_BOUNDARY_MVF) &&
         B.category === 'F' &&
         C.category === 'F' &&
         D.category === 'V'
@@ -1809,7 +1826,7 @@ const parseExpression = (expression, scope) => {
         continue;
       }
       if(ABCD &&
-        belong(A.category, ['M', /*'V',*/ 'F', '(', '←', 'Edge', ':']) &&
+        belong(A.category, CAT_BOUNDARY_MF) &&
         B.category === 'V' &&
         C.category === 'F' &&
         D.category === 'V'
@@ -1822,9 +1839,8 @@ const parseExpression = (expression, scope) => {
         continue;
       }
       if(ABC &&
-        belong(A.category, 
-          ['M', 'V', 'F', '(', '←', 'Edge', ':']) &&
-        belong(B.category, ['F', 'V']) &&
+        belong(A.category, CAT_BOUNDARY_MVF) &&
+        belong(B.category, CAT_F_V) &&
         C.category === 'M'
       ) {
         //console.log('Found monadic operator:', B.text, C.text);
@@ -1835,15 +1851,13 @@ const parseExpression = (expression, scope) => {
         continue;
       }
       if(ABCD &&
-        (((belong(A.category, 
-          ['M', 'F', '(', '←', 'Edge', ':']) &&
+        (((belong(A.category, CAT_BOUNDARY_MF) &&
         (B.category ===  'V')) )||
-        ((belong(A.category, 
-          ['M', 'V', 'F', '(', '←', 'Edge', ':']) &&
+        ((belong(A.category, CAT_BOUNDARY_MVF) &&
         (B.category === 'F')) ))
         &&
         C.category === 'D' &&
-        belong(D.category, ['F', 'V'])
+        belong(D.category, CAT_F_V)
       ) {
         //console.log('Found dyadic operator:', B.text, C.text, D.text);
         let newText;
@@ -1858,16 +1872,15 @@ const parseExpression = (expression, scope) => {
         continue;
       }
       if(ABCD &&
-        belong(A.category, 
-          ['M', 'V', 'F', '(', '←', 'Edge', ':']) &&
-        belong(B.category, ['F', 'V']) &&
+        belong(A.category, CAT_BOUNDARY_MVF) &&
+        belong(B.category, CAT_F_V) &&
         C.category === 'F' &&
         D.category === 'F'
       ) {
         //console.log('Found train with functions:', B.text, C.text, D.text);
         let newText = '';
         if(B.category === 'V') {
-          newText = `((${_w_}, ${_a_})=> ${C.text}(${D.text}, ${B.text}(${_w_}, ${_a_})))`;
+          newText = `((${_w_}, ${_a_})=> ${C.text}(${D.text}(${_w_}), ${B.text}))`;
         } else {
           newText = `((${_w_}, ${_a_})=> ${C.text}(${D.text}(${_w_}, ${_a_}), ${B.text}(${_w_}, ${_a_})))`;     
         }
@@ -1877,8 +1890,7 @@ const parseExpression = (expression, scope) => {
         continue;
       }
       if(ABC &&
-        belong(A.category, 
-          ['(', '←', 'Edge', ':']) &&
+        belong(A.category, CAT_BOUNDARY) &&
         B.category === 'F' &&
         C.category === 'F'
       ) {
@@ -1890,11 +1902,10 @@ const parseExpression = (expression, scope) => {
         continue;
       }
       if(ABCD &&
-        belong(A.category, 
-          ['(', '←', 'M', 'F', 'Edge']) &&
-        belong(B.category,['V', 'F', 'D', 'M']) &&
+        belong(A.category, CAT_BOUNDARY_MF_NOCOLON) &&
+        belong(B.category, CAT_V_F_D_M) &&
         C.category === '←' &&
-        belong(D.category, ['F', 'V', 'M', 'D'])
+        belong(D.category, CAT_V_F_D_M)
       ) {
         const [categoryEntry, global] 
           = find_category(B.text, scope);
