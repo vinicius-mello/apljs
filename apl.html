@@ -991,6 +991,7 @@
         <button class="help-tab" data-tab="primitives" type="button">Primitives</button>
         <button class="help-tab" data-tab="graphics" type="button">SVG Graphics</button>
         <button class="help-tab" data-tab="ffi" type="button">FFI Examples</button>
+        <button class="help-tab" data-tab="implementation" type="button">Implementation</button>
         <button class="help-tab" data-tab="about" type="button">About</button>
       </div>
       <div class="help-body">
@@ -1020,6 +1021,23 @@
           <p>APL.js is a small APL-to-JavaScript transpiler with a graphics-capable browser REPL, built as an educational project exploring how APL's array notation compiles to plain JS.</p>
           <p>It's made of three pieces: the transpiler core (tokenizer, parser, primitive library), this multi-cell REPL with SVG/d3/Observable Plot output and a JS/JS-object FFI, and a simpler translator-only demo page.</p>
           <p>Version <span class="help-code">0.1</span> · <a href="https://github.com/vinicius-mello/apljs" target="_blank" rel="noopener noreferrer">github.com/vinicius-mello/apljs</a></p>
+        </section>
+        <section id="helpTabImplementation" class="help-tab-panel">
+          <div class="help-graphics-item">
+            <h3>The parser: a right-to-left shift-reduce loop</h3>
+            <p>Tokens are consumed right-to-left onto a single stack of <span class="help-code">{category, node}</span> pairs (categories: value, function, monadic/dyadic operator, boundary markers...). After every shift, <span class="help-code">reduceStack</span> pattern-matches a small window - the top 2 to 4 stack slots - against a fixed list of grammar rules (parentheses, strand formation, monadic/dyadic application, trains, operator binding...), collapsing a match into one node, and keeps retrying until nothing matches before the next token shifts on.</p>
+            <p>There's no bracket-indexing production - <span class="help-code">A[I]</span> never enters the grammar. Indexing is just an ordinary function application of <span class="help-code">⌷</span> (squad) like any other primitive, so the parser stays small and uniform: everything is function application/composition, nothing gets a special-cased sub-grammar.</p>
+          </div>
+          <div class="help-graphics-item">
+            <h3>The array model: nested JS arrays, shape as an escape hatch</h3>
+            <p>There's no dedicated array class - an APL array is a plain (possibly nested) JS array, and a scalar is a bare JS number/string. Shape is normally <em>inferred</em> structurally: <span class="help-code">shapeRec</span> walks <span class="help-code">Array.isArray</span>/<span class="help-code">.length</span> recursively rather than reading it off stored metadata.</p>
+            <p>That inference has two blind spots a handful of primitives patch by stamping an explicit <span class="help-code">.shape</span> field on their result, which <span class="help-code">shapeRec</span> checks before falling back to structural inference. Monadic enclose (<span class="help-code">⊂</span>) tags its rank-0 result <span class="help-code">.shape = []</span>, since a plain length-1 array is otherwise indistinguishable from a real 1-vector; pervasive functions (arithmetic, relational, catenate) know to see through that tag and rebuild it on their own result so the enclosure survives the operation. Reshape (<span class="help-code">⍴</span>) tags its result whenever the target shape has a zero dimension, since a zero collapses everything nested inside it to a bare <span class="help-code">[]</span> with nothing left to structurally reveal the dimensions that followed it.</p>
+          </div>
+          <div class="help-graphics-item">
+            <h3>The FFI trio: ⍠ ⍔ ⍞</h3>
+            <p><span class="help-code">⍠</span> (buildObject) does the actual work: monadically it turns a command list into a plain JS object; dyadically, a chained command list threads each step's result into the next call on a receiver, and reading a method back out (a bare key, no call) rebinds it to its receiver so it stays correctly callable even after being stored or passed around - binding at the call site alone wouldn't survive that.</p>
+            <p><span class="help-code">⍔</span> (asFunction) is a genuine monadic operator: it relabels a value from V to F so it can sit in function position and be applied. <span class="help-code">⍞</span> is its inverse, but it's not a runtime function at all - it's a parse-time-only marker that relabels the F/M/D token to its right as a plain V, so it compiles to a bare reference to the underlying JS function instead of applying it.</p>
+          </div>
         </section>
       </div>
     </div>
@@ -1325,6 +1343,7 @@
       primitives: document.getElementById("helpTabPrimitives"),
       graphics: document.getElementById("helpTabGraphics"),
       ffi: document.getElementById("helpTabFFI"),
+      implementation: document.getElementById("helpTabImplementation"),
       about: document.getElementById("helpTabAbout")
     };
     const helpGrid = document.getElementById("helpGrid");
