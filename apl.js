@@ -958,7 +958,16 @@ const G = {
       a = [a];
     }
     const m = w.length;
-    return fillShapeRec(a, (prefix, index) => w[index % m]);
+    const result = fillShapeRec(a, (prefix, index) => w[index % m]);
+    if (a.includes(0)) {
+      // Any zero dimension collapses everything nested inside it to a
+      // bare [] - e.g. 0 3⍴w has nothing left to structurally reveal the
+      // "3" (fillShapeRec never recurses into a 0-length level), so the
+      // requested shape has to be stamped explicitly for shapeRec to
+      // recover it instead of guessing [0].
+      result.shape = a.slice();
+    }
+    return result;
   },
   match: (w, a) => {
     return matchRec(w, a);  
