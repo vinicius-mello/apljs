@@ -855,6 +855,12 @@ const flattenDeep = (w) => {
 
 const isMember = (item, list) => list.some(x => matchRec(item, x) === 1);
 
+// Provisional implementation: O(n²) (a matchRec-based .some() scan of the
+// result-so-far per item), fine for the REPL's typical small arrays but
+// not something to rely on for large inputs. Used by G.unique (∪) and
+// G.intersect (∩). A real fix would need a hashable key per item (cheap
+// for simple scalars, harder for nested/boxed items, which still need
+// matchRec's structural comparison) to get this down to roughly O(n).
 const uniqueItems = (items) => {
   const result = [];
   for (const item of items) {
