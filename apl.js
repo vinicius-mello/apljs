@@ -632,6 +632,25 @@ const getRec = (arr, idx) => {
   return result;
 };
 
+// Pick's (⊃) path-walking engine: unlike squad, which indexes across an
+// array's own axes, pick walks successive levels of *enclosure* - each
+// step must disclose a box before it can be indexed into. Verified
+// against real Dyalog: 1 1⊃(1 2)(3(4 5)) is 4 5 (step into item 1, which
+// is a box; disclose it; step into ITS item 1, another box; disclose
+// that too), not two independent picks.
+const pickPath = (w, path) => {
+  let current = w;
+  for (const idx of path) {
+    if (isBoxed(current)) current = current[0];
+    if (!Array.isArray(current) || typeof idx !== 'number' || idx < 0 || idx >= current.length) {
+      throw new Error('Index error: pick path out of bounds');
+    }
+    current = current[idx];
+  }
+  if (isBoxed(current)) current = current[0];
+  return current;
+};
+
 // All four functions below used to guard entry with a raw
 // `!Array.isArray(a[0])` check - which misreads a boxed cell (⊂x, always
 // a 1-element array `[x]`) as "a row of width 1" and recurses INTO it
@@ -1927,19 +1946,30 @@ const G = {
   },
   pick: (w, a) => {
     if (a===undefined) {
-      if (Array.isArray(w))
-        return w.length===0? 0 : w[0];
-      if (typeof w==='string') 
+      // Monadic ⊃ is "First": the first item (ravel order), disclosed if
+      // it's a box, the prototype element for an empty w, or w itself for
+      // a true scalar. Verified against real Dyalog:
+      // (⊃(⊂1 2),⊂3 4)≡1 2 is 1 - the first item comes out disclosed, not
+      // still boxed.
+      if (Array.isArray(w)) {
+        if (w.length === 0) return 0;
+        return isBoxed(w[0]) ? w[0][0] : w[0];
+      }
+      if (typeof w==='string')
         return w.length===0? ' ' : w[0];
       return w;
     }
+    // A simple (flat, unboxed-numbers-only) ⍺ is ONE path through w's
+    // nesting levels - see pickPath. Verified against real Dyalog:
+    // 1⊃(⊂1 2),⊂3 4 is 3 4 (disclosed), matching pickPath's final
+    // disclose step.
     if (typeof a === 'number') {
-      return w[a];
+      return pickPath(w, [a]);
     }
-    if (Array.isArray(a)) {
-      return a.map(x => at(w, typeof x === 'number' ? [x] : x));
+    if (Array.isArray(a) && a.every((x) => typeof x === 'number')) {
+      return pickPath(w, a);
     }
-    throw new Error('Unsupported type for pick');
+    throw new Error('Unsupported type for pick: ⍺ must be a simple (unboxed) numeric path');
   },
   take: (w, a) => {
     if (!Array.isArray(w)) {
