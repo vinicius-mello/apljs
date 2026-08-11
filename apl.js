@@ -1698,6 +1698,12 @@ const G = {
       return a;
     }
     if (a.length === 0) {
+      // Ad hoc identity elements, for now: a proper fix needs every
+      // primitive to expose its own identity element (+/⍬ is 0, ×/⍬ is 1,
+      // ∧/⍬ is 1, etc. in real Dyalog), which nothing here currently does.
+      // Only the two most common cases are covered.
+      if (f === G.plus) return 0;
+      if (f === G.times) return 1;
       throw new Error('Reduce cannot be applied to an empty array');
     }
     return a.reduceRight(f);
