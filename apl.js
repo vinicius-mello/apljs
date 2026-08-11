@@ -1689,8 +1689,13 @@ const G = {
     return f(g(w),a);      
   },
   reduce: ((f) => (a) => {
-    if (!Array.isArray(a)) {
-      throw new Error('Reduce requires an array');
+    // Rank 0 (a plain scalar, or a box - a box is a 1-element JS array,
+    // which would otherwise slip through as "an array to reduce" and get
+    // silently disclosed by reduceRight's own single-element shortcut).
+    // Verified against real Dyalog: +/5 is 5, and (+/⊂1 2 3)≡⊂1 2 3 - a
+    // rank-0 argument has no axis to reduce along, so reduce is identity.
+    if (!Array.isArray(a) || isBoxed(a)) {
+      return a;
     }
     if (a.length === 0) {
       throw new Error('Reduce cannot be applied to an empty array');
@@ -1698,8 +1703,10 @@ const G = {
     return a.reduceRight(f);
   }),
   scan: ((f) => (a) => {
-    if (!Array.isArray(a)) {
-      throw new Error('Scan requires an array');
+    // Same rank-0 identity rule as reduce, above - verified against real
+    // Dyalog: +\5 is 5 (not ,5), and (+\⊂1 2 3)≡⊂1 2 3.
+    if (!Array.isArray(a) || isBoxed(a)) {
+      return a;
     }
     if (a.length === 0) {
       throw new Error('Scan cannot be applied to an empty array');
