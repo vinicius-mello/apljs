@@ -1086,14 +1086,28 @@ const G = {
     if (typeof f !== 'function') {
       throw new Error('Each requires a function');
     }
-    if (Array.isArray(w)&&Array.isArray(a)) {
-      return w.map((x,i) => f(x, a[i]));
-    } else if(Array.isArray(w)) {
-      return w.map(x => f(x, a));
-    } else if(Array.isArray(a)) {
-      return a.map(x => f(w, x));
+    // A box is one rank-0 cell for each too, not an array to iterate -
+    // same disclose/apply/re-enclose rule as pervadeBoxed/G.outer.
+    // Verified against real Dyalog: ⊢¨⊂1 2 3 discloses to 1 2 3, applies
+    // ⊢ (identity), and re-encloses - it displays as a single box, and ⍴
+    // of it is ⍬ (rank 0), not [1,3] (which is what a raw
+    // Array.isArray(w)-driven .map over the box's own single JS slot
+    // used to produce).
+    const applyCell = (wCell, aCell) => {
+      const wArg = isBoxed(wCell) ? wCell[0] : wCell;
+      const aArg = isBoxed(aCell) ? aCell[0] : aCell;
+      return encloseIfNeeded(f(wArg, aArg));
+    };
+    const wIsArray = Array.isArray(w) && !isBoxed(w);
+    const aIsArray = Array.isArray(a) && !isBoxed(a);
+    if (wIsArray && aIsArray) {
+      return w.map((x,i) => applyCell(x, a[i]));
+    } else if (wIsArray) {
+      return w.map(x => applyCell(x, a));
+    } else if (aIsArray) {
+      return a.map(x => applyCell(w, x));
     } else {
-      return f(w, a);
+      return applyCell(w, a);
     }
   },
   power: (f, g)=>(w, a) => {
