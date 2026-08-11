@@ -359,7 +359,7 @@ const mdfunc = (m,d,w,a) => {
     } else if (Array.isArray(w)) {
       return w.map(x => mdfunc(m,d,x));
     } else {
-      throw new Error('Unsupported type for negation');
+      throw new Error('Unsupported type for monadic function');
     }
   }
   if (isBoxed(w) || isBoxed(a)) {
@@ -376,11 +376,11 @@ const mdfunc = (m,d,w,a) => {
   }
   if (Array.isArray(w) && Array.isArray(a)) {
     if (w.length !== a.length) {
-      throw new Error('Arrays must be of the same length for element-wise subtraction.');
+      throw new Error('Arrays must be of the same length for element-wise operation.');
     }
     return a.map((x, i) => mdfunc(m,d,w[i],x));
   } else {
-    throw new Error('Unsupported types for subtraction');
+    throw new Error('Unsupported types for dyadic function');
   }
 }
 
