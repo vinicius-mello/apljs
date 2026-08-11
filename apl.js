@@ -1436,12 +1436,23 @@ const G = {
   // matrix (one right-hand side per column), and the result matches ⍺'s
   // shape (vector in, vector out).
   domino: (w, a) => {
-    if (!Array.isArray(w) || !Array.isArray(w[0])) {
+    // A box is rank 0, never a matrix - w[0] being an array (the box's
+    // disclosed content, if that content happens to itself be a matrix)
+    // used to slip past a bare !Array.isArray(w[0]) check and get treated
+    // as a real (garbage) 1-row matrix. Verified against real Dyalog:
+    // ⌹⊂2 2⍴1 2 3 4 is a DOMAIN ERROR, not a disclose-and-proceed.
+    if (!Array.isArray(w) || isBoxed(w) || !Array.isArray(w[0])) {
       throw new Error('Domino requires a matrix');
     }
     if (a === undefined) {
       return matPseudoInverse(w);
     }
+    // NOTE: dyadic domino's exact formula when a is a plain vector (not a
+    // matrix) is not fully understood here yet - (⌹w)+.×a and w⌹a give
+    // different answers in real Dyalog for the same inputs (confirmed:
+    // (⌹2 2⍴1 0 0 2)+.×1 2 is 1 1, but (2 2⍴1 0 0 2)⌹1 2 is 0.2 0.8), and
+    // this implementation reproduces neither. Left untouched pending
+    // that - don't trust dyadic domino with a vector right argument.
     const aIsVector = !Array.isArray(a[0]);
     const aMat = aIsVector ? a.map((x) => [x]) : a;
     const result = matMul(matPseudoInverse(w), aMat);
