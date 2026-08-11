@@ -1194,26 +1194,39 @@ const G = {
     }
   }, 
   compress: (w, a) => {
-    if (typeof w === 'string' && Array.isArray(a)) {
-      w = w.split('');
-      let result = '';
-      for (let i = 0; i < w.length; i++) {
-        for(let j = 0; j < a[i]; j++) {
-          result = result + w[i];
-        }
-      }
-      return result;
-    }
-    if(!Array.isArray(w) || !Array.isArray(a)) {
+    // Either side broadcasts if it's scalar-like (a plain number/string,
+    // or - the box-safety fix - a boxed value) to match the other side's
+    // length. Verified against real Dyalog: 3/1 2 3 repeats the count 3
+    // for every element (previously unsupported here - a bare a.length
+    // check required a to already be an array), and 1 0 1/⊂1 2 3
+    // broadcasts the boxed scalar to 3 positions before dropping the
+    // middle one. Compress never discloses a boxed item on the w side -
+    // it's structural, not pervasive, so a kept/dropped/repeated item
+    // passes through exactly as it was, box or not.
+    const wasString = typeof w === 'string';
+    const witems = wasString ? w.split('') : w;
+    const wIsScalar = isScalarLike(witems);
+    const aIsScalar = isScalarLike(a);
+    if (!wIsScalar && !Array.isArray(witems)) {
       throw new Error('Unsupported types for compress');
     }
+    if (!aIsScalar && !Array.isArray(a)) {
+      throw new Error('Unsupported types for compress');
+    }
+    if (!wIsScalar && !aIsScalar && witems.length !== a.length) {
+      throw new Error('Length mismatch for compress');
+    }
+    const length = wIsScalar ? (aIsScalar ? 1 : a.length) : witems.length;
     const result = [];
-    for (let i = 0; i < w.length; i++) {
-      for(let j = 0; j < a[i]; j++) {
-        result.push(w[i]);
+    for (let i = 0; i < length; i++) {
+      const item = wIsScalar ? witems : witems[i];
+      const countCell = aIsScalar ? a : a[i];
+      const count = isBoxed(countCell) ? countCell[0] : countCell;
+      for (let j = 0; j < count; j++) {
+        result.push(item);
       }
     }
-    return result;
+    return (wasString && !wIsScalar) ? result.join('') : result;
   },
   deal: (w, a) => {
     if(a===undefined) {
