@@ -1431,32 +1431,37 @@ const G = {
     });
   },
   // Domino (⌹): monadic ⌹⍵ is the matrix inverse (or least-squares
-  // pseudo-inverse for a non-square ⍵); dyadic ⍺⌹⍵ solves ⍵·X≡⍺ for X, i.e.
-  // (⌹⍵)+.×⍺ - ⍺ may be a plain vector (a single right-hand side) or a
-  // matrix (one right-hand side per column), and the result matches ⍺'s
-  // shape (vector in, vector out).
+  // pseudo-inverse for a non-square ⍵); dyadic ⍺⌹⍵ generalizes division -
+  // the matrix on the RIGHT (⍵) is always the one that gets pseudo-inverted,
+  // and ⍺ is matrix-multiplied on the LEFT of that inverse: ⍺⌹⍵ ≡ ⍺+.×⌹⍵.
+  // Verified against real Dyalog with the matrix on either side:
+  // (2 2⍴1 0 0 2)⌹1 2 is 0.2 0.8 (matches ⍺+.×⌹⍵: (2 2⍴1 0 0 2)+.×(⌹1 2)),
+  // and 1 2⌹2 2⍴1 0 0 2 is 1 1 (matches (1 2)+.×⌹(2 2⍴1 0 0 2)). Either ⍺
+  // or ⍵ may be a plain vector instead of a matrix - a vector is treated as
+  // a single row for pseudo-inversion purposes (also verified monadically:
+  // ⌹1 2 3 is (1 2 3)÷14, the pseudo-inverse of a 1×3 row).
   domino: (w, a) => {
-    // A box is rank 0, never a matrix - w[0] being an array (the box's
-    // disclosed content, if that content happens to itself be a matrix)
-    // used to slip past a bare !Array.isArray(w[0]) check and get treated
-    // as a real (garbage) 1-row matrix. Verified against real Dyalog:
-    // ⌹⊂2 2⍴1 2 3 4 is a DOMAIN ERROR, not a disclose-and-proceed.
-    if (!Array.isArray(w) || isBoxed(w) || !Array.isArray(w[0])) {
-      throw new Error('Domino requires a matrix');
+    // A box is rank 0, never valid input here - w[0] being an array (the
+    // box's disclosed content, if that content happens to itself be
+    // array-shaped) used to slip past a bare !Array.isArray(w[0]) check
+    // and get treated as a real (garbage) matrix. Verified against real
+    // Dyalog: ⌹⊂2 2⍴1 2 3 4 is a DOMAIN ERROR, not a disclose-and-proceed.
+    if (!Array.isArray(w) || isBoxed(w)) {
+      throw new Error('Domino requires a matrix or vector');
     }
+    const wIsVector = !Array.isArray(w[0]);
+    const wMat = wIsVector ? [w] : w;
     if (a === undefined) {
-      return matPseudoInverse(w);
+      const inv = matPseudoInverse(wMat);
+      return wIsVector ? inv.map((row) => row[0]) : inv;
     }
-    // NOTE: dyadic domino's exact formula when a is a plain vector (not a
-    // matrix) is not fully understood here yet - (⌹w)+.×a and w⌹a give
-    // different answers in real Dyalog for the same inputs (confirmed:
-    // (⌹2 2⍴1 0 0 2)+.×1 2 is 1 1, but (2 2⍴1 0 0 2)⌹1 2 is 0.2 0.8), and
-    // this implementation reproduces neither. Left untouched pending
-    // that - don't trust dyadic domino with a vector right argument.
     const aIsVector = !Array.isArray(a[0]);
-    const aMat = aIsVector ? a.map((x) => [x]) : a;
-    const result = matMul(matPseudoInverse(w), aMat);
-    return aIsVector ? result.map((row) => row[0]) : result;
+    const aMat = aIsVector ? [a] : a;
+    const result = matMul(aMat, matPseudoInverse(wMat));
+    if (aIsVector && wIsVector) return result[0][0];
+    if (aIsVector) return result[0];
+    if (wIsVector) return result.map((row) => row[0]);
+    return result;
   },
   rank: (f, g) => (w, a) => {
     if (typeof f !== 'function') {
