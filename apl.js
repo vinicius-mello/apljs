@@ -1707,13 +1707,21 @@ const G = {
     return result;
   },            
   jot: (f, g) => (w, a) => {
+    // f is a bound value, g a function: (f∘g)⍵ ≡ f g ⍵ - f is g's LEFT
+    // argument (⍺), the jot's own ⍵ is g's right. Every primitive here
+    // takes (w,a) positionally, so that's g(w, f), not g(f, w) - the
+    // latter swaps ⍺ and ⍵, which non-commutative functions expose.
+    // Verified against real Dyalog: (2∘|)5 is 1 (2|5), not 2.
     if(typeof f !== 'function') {
-      return g(f, w);
+      return g(w, f);
     }
+    // g is a bound value, f a function: (f∘g)⍵ ≡ ⍵ f g - the jot's own
+    // ⍵ is f's LEFT argument, g is f's right. Same swap for the same
+    // reason. Verified against real Dyalog: (|∘2)5 is 2 (5|2), not 1.
     if(typeof g !== 'function') {
-      return f(w, g);
+      return f(g, w);
     }
-    return f(g(w),a);      
+    return f(g(w),a);
   },
   reduce: ((f) => (a) => {
     // Rank 0 (a plain scalar, or a box - a box is a 1-element JS array,
