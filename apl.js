@@ -574,6 +574,7 @@ const at = (arr, idx) => {
 const assignRec = (arr, idx, value) => {
   if(typeof idx === 'number') {
     arr[idx] = value;
+    return;
   }
   let result = arr;
   for (let i = 0; i < idx.length - 1; i++) {
@@ -1859,6 +1860,12 @@ const G = {
         assignRec(result, prefix, newValues[i]);
       });
       return result;
+    }
+    // A bare index (0@2⊢1 2 3 4 5, replacing a single position) is just
+    // the 1-element-list case - verified against real Dyalog: 0@2⊢1 2 3 4
+    // 5 is 1 2 0 4 5.
+    if (typeof g === 'number') {
+      g = [g];
     }
     if(Array.isArray(g)) {
       if(Array.isArray(f)) {
