@@ -1,4 +1,5 @@
 import { test } from 'node:test';
+import assert from 'node:assert/strict';
 import { evaluateApl } from '../apl.js';
 import { assertAplEqual } from './helpers.mjs';
 
@@ -61,4 +62,24 @@ test('⊂ still applies to its own argument when / or \\ sits immediately to its
 
 test('/⍨ (compress with swapped args) still binds - / as another operator\'s operand', () => {
   assertAplEqual(evaluateApl('1 2 3 4/⍨0 1 0 1'), [2, 4]);
+});
+
+// Regression for a fork-forming bug hit right after / and \ got their own
+// 'R' category: R rides along in CAT_F_V so operators like ⍨ can bind to an
+// uncombined / (see the /⍨ test above), but that same inclusion let the
+// 3-tine fork rule accept a bare, not-yet-combined / as its OWN left tine -
+// stealing it away from the reduce-operator rule that should have combined
+// it with the function to its left first. (+/÷≢)⍳10 silently parsed as
+// (+)(fork /÷≢) instead of (fork +/ ÷ ≢), while the ⌿ spelling was always
+// fine since ⌿'s category ('M') was never in CAT_F_V to begin with. Fixed
+// by giving the fork rule its own CAT_TINE_F_V (F/V, no R).
+
+test('f/ as a fork\'s left tine still combines with its own operand first, like f⌿', () => {
+  assert.equal(evaluateApl('(+/÷≢)⍳10'), 4.5);
+  assert.equal(evaluateApl('(+⌿÷≢)⍳10'), 4.5);
+});
+
+test('the same fork bug with \\\\, mirrored against ⍀', () => {
+  assertAplEqual(evaluateApl('(+\\÷≢)⍳4'), [0, 0.25, 0.75, 1.5]);
+  assertAplEqual(evaluateApl('(+⍀÷≢)⍳4'), [0, 0.25, 0.75, 1.5]);
 });
