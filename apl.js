@@ -2818,12 +2818,18 @@ const parseExpression = (expression, scope) => {
         (((belong(A.category, CAT_BOUNDARY_MF) &&
         (B.category ===  'V')) )||
         ((belong(A.category, CAT_BOUNDARY_MVF) &&
-        (B.category === 'F')) ))
+        belong(B.category, ['F', 'R'])) ))
         &&
         C.category === 'D' &&
         belong(D.category, CAT_F_V)
       ) {
         //console.log('Found dyadic operator:', B.node, C.node, D.node);
+        // A D-operator's left operand (B) can be 'R' too (⌿/⍀//\\, e.g.
+        // ⌿⍤1 1), not just a plain 'F' - R is function-like here exactly
+        // like it already is on the right side (D's own CAT_F_V check
+        // already includes 'R'). Grouped with the 'F' branch, not given
+        // its own, since R behaves identically to F for this rule (both
+        // need the same CAT_BOUNDARY_MVF boundary on A).
         // f∘.g (outer product) tokenizes as emptyFunc . g - the jot's left
         // operand being literally the bare, unglobal-prefixed emptyFunc/dot
         // pair is what distinguishes this idiom from an ordinary a D w.
