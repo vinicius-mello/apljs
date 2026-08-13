@@ -7,13 +7,14 @@ import { assertAplEqual } from './helpers.mjs';
 // comment on global_category, and last-axis.test.mjs): ⍺⌿⍵ compress and
 // f⌿ reduce were already different in arity (dyadic vs monadic) like
 // compress/reduce always are, but now share the ⌿ glyph too (same for
-// ⍀: ⍺⍀⍵ expand, f⍀ scan). Unlike / and \, which recurse to operate on
-// the LAST axis dyadically... actually they don't recurse dyadically
-// either in this array model - ⌿/⍀'s dyadic form is structurally
-// identical to /'s and \'s own dyadic form (G.reduce/G.scan just
-// delegate to G.compress/G.expand), so ⌿/⍀ and /\ agree on every vector
-// case and only diverge from real first-vs-last-axis Dyalog semantics
-// the same way / and \ already do for matrices.
+// ⍀: ⍺⍀⍵ expand, f⍀ scan). ⌿/⍀'s dyadic form shares its actual
+// vector-level algorithm with /'s and \'s own dyadic form (both call the
+// same compressAxis/expandAxis helpers), but each picks a different axis:
+// ⌿/⍀ apply it directly to ⍵'s top-level items (first axis, no
+// recursion), while /'s and \'s own G.compress/G.expand recurse down to
+// rank<=1 first (last axis) - so ⌿/⍀ and /\ still agree on every vector
+// case (only one axis to pick from there) but genuinely diverge on
+// matrices, matching real Dyalog's first-vs-last-axis semantics.
 
 test('⍺⌿⍵ compresses along the FIRST axis: selects/repeats whole ROWS', () => {
   assertAplEqual(evaluateApl('1 0 1⌿3 3⍴⍳9'), [[0, 1, 2], [6, 7, 8]]);

@@ -8,8 +8,16 @@ import { assertAplEqual } from './helpers.mjs';
 // scan-last-axis) - see the / and \ comment on global_category in apl.js.
 // ⌿/⍀ stay first-axis-only and unchanged.
 
-test('/ still compresses dyadically, unchanged', () => {
+test('/ still compresses a vector the same way (only one axis to pick from)', () => {
   assertAplEqual(evaluateApl('3/1 2 3'), [1, 1, 1, 2, 2, 2, 3, 3, 3]);
+});
+
+test('⍺/⍵ compresses along the LAST axis: drops/repeats within each ROW', () => {
+  assertAplEqual(evaluateApl('1 0 1/2 3⍴⍳6'), [[0, 2], [3, 5]]);
+});
+
+test('⍺\\⍵ expands along the LAST axis: inserts fills within each ROW', () => {
+  assertAplEqual(evaluateApl('1 0 1 0 1\\2 3⍴1 2 3 4 5 6'), [[1, 0, 2, 0, 3], [4, 0, 5, 0, 6]]);
 });
 
 test('monadic / reduces along the last axis: sums each ROW of a matrix', () => {
