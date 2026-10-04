@@ -1360,7 +1360,7 @@
       { glyph: "⍸", name: "Where / interval index", monadic: "Indices where true: <code>⍸0 1 1 0</code> → 1 2", dyadic: "Interval index of value in boundaries" },
       { glyph: "⍋", name: "Grade up", monadic: "Ascending sort indices: <code>⍋3 1 2</code> → 1 2 0" },
       { glyph: "⍒", name: "Grade down", monadic: "Descending sort indices: <code>⍒3 1 2</code> → 0 2 1" },
-      { glyph: "⍣", name: "Power (operator)", dyadic: "Repeat n times: <code>(2×)⍣3⊢1</code> → 8" },
+      { glyph: "⍣", name: "Power (operator)", dyadic: "Repeat n times: <code>(2×)⍣3⊢1</code> → 8, or until a condition: <code>{⍵×2}⍣{⍺>100}1</code> → 128" },
       { glyph: "∇", name: "Self-reference", monadic: "Recursive call inside a dfn" },
       { glyph: "≢", name: "Tally", monadic: "Length: <code>≢1 2 3</code> → 3", dyadic: "Not-match: <code>1 2≢1 2</code> → 0" },
       { glyph: "⎕", name: "Quad", monadic: "Print/emit a value: <code>⎕←value</code>" },

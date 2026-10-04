@@ -1278,11 +1278,14 @@ const G = {
       let result = w;
       let newResult;
       let iterations = 100000; // Prevent infinite loops
+      // Dyalog returns the first NEW value for which (new g old) holds, not
+      // the old one - verified: {⍵×2}⍣{⍺>100}1 is 128, not 64. (For the
+      // usual ⍣= fixpoint the two coincide, which hid this.)
       while (g(result, newResult=f(result, a)) === 0 && iterations > 0) {
         result = newResult;
         iterations--;
       }
-      return result;
+      return newResult;
     }
     throw new Error('Power requires a function or a number');
   },
@@ -1932,14 +1935,12 @@ const G = {
         if (arr.length === 0) {
           throw new Error('Scan cannot be applied to an empty array');
         }
-        const result = [];
-        let acc = arr[0];
-        result.push(acc);
-        for (let i = 1; i < arr.length; i++) {
-          acc = f(acc, arr[i]);
-          result.push(acc);
-        }
-        return result;
+        // Item i is f⌿ of the first i+1 items, reduced right-to-left like
+        // any other APL reduction - a running left-to-right accumulator
+        // only agrees with that for an associative AND commutative f.
+        // Verified against real Dyalog: -⍀1 2 3 is 1 ¯1 2, ,⍀1 2 3 is
+        // 1 (1 2) (1 2 3). O(n²), the price of being correct for any f.
+        return arr.map((_, i) => arr.slice(0, i + 1).reduceRight((acc, x) => f(acc, x)));
       };
     }
     // Dyadic ⍺⍀⍵: expand along the FIRST axis - same reasoning as reduce's
@@ -2346,7 +2347,7 @@ const dfn_or_dop = (subExpressions) => {
          (token.value === '⍺⍺'||token.value === '⍶')) {
         countAlpha++;
       } else if (token.type === 'SPECIAL_VAR' && 
-         (token.value === '⍹')) {
+         (token.value === '⍵⍵' || token.value === '⍹')) {
         countOmega++;
       }
     }
@@ -2509,7 +2510,10 @@ const emitJs = (node, asTarget = false) => {
       return `${emitJs(node.operator)}(${emitJs(node.left)}, ${emitJs(node.right)})`;
     case 'Fork':
       if (node.leftIsValue) {
-        return `((${_w_}, ${_a_})=> ${emitJs(node.mid)}(${emitJs(node.right)}(${_w_}), ${emitJs(node.left)}))`;
+        // A g h: the value A is g's left argument, and h still sees both of
+        // the fork's own arguments - ⍺ (A g h) ⍵ ≡ A g (⍺ h ⍵). Verified
+        // against real Dyalog: 2 (1+-) 5 is ¯2.
+        return `((${_w_}, ${_a_})=> ${emitJs(node.mid)}(${emitJs(node.right)}(${_w_}, ${_a_}), ${emitJs(node.left)}))`;
       }
       return `((${_w_}, ${_a_})=> ${emitJs(node.mid)}(${emitJs(node.right)}(${_w_}, ${_a_}), ${emitJs(node.left)}(${_w_}, ${_a_})))`;
     case 'Atop':
