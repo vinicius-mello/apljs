@@ -9,11 +9,11 @@ test('monadic ⌷ is identity', () => {
 });
 
 test('indexing into a rank-0 argument is a length error', () => {
-  assert.throws(() => evaluateApl('2⌷⊂1 2 3 4 5'), /Length error/);
+  assert.throws(() => evaluateApl('2⌷⊂1 2 3 4 5'), /LENGTH ERROR/);
 });
 
 test('out-of-bounds index is an index error', () => {
-  assert.throws(() => evaluateApl('10⌷1 2 3'), /Index error/);
+  assert.throws(() => evaluateApl('10⌷1 2 3'), /INDEX ERROR/);
 });
 
 test('a boxed per-axis entry selects several indices along that axis', () => {
