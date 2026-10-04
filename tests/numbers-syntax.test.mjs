@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateApl, tokenizer, parseExpression, global_category } from '../apl.js';
+import { evaluateApl, tokenizer, parseExpression, global_category, formatNum } from '../apl.js';
 import { assertAplEqual } from './helpers.mjs';
 
 // Tokenizer (numbers, strings, system names, unknown glyphs), ⍕ number
@@ -93,4 +93,13 @@ test('parsing does not mutate the caller token list', () => {
   const before = JSON.stringify(tokens);
   parseExpression(tokens, [{ ...global_category }]);
   assert.equal(JSON.stringify(tokens), before);
+});
+
+test('formatNum (used by the REPL display) spells numbers the APL way', () => {
+  assert.equal(formatNum(-0.6180339887), '¯0.6180339887');
+  assert.equal(formatNum(-1e-7), '¯1E¯7');
+  assert.equal(formatNum(1e21), '1E21');
+  assert.equal(formatNum(-Infinity), '¯∞');
+  assert.equal(formatNum(-0), '0');
+  assert.equal(formatNum(42), '42');
 });
