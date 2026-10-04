@@ -130,8 +130,12 @@ const tokenizer = (text) => {
     // silently dropping the SEPARATOR token and fusing two lines into one
     // expression. Bare \r\n is left for the SEPARATOR spec above to match.
     { regex: /^[^\S\r\n]+/, type: 'WHITESPACE' },
-    { regex: /^[¯]?\d+(\.\d+)?/u, type: 'NUMBER' },
-    { regex: /^'[^'\\]*(?:\\.[^'\\]*)*'/, type: 'STRING' },
+    // Scientific notation too (1E3, 2.5e¯4) - the exponent needs at least
+    // one digit, so a name glued to a number (2e) can't be mistaken for one.
+    { regex: /^¯?\d+(\.\d+)?([eE]¯?\d+)?/u, type: 'NUMBER' },
+    // A quote inside a string is doubled, as in APL ('it''s'); backslash
+    // escapes (\n, \t...) are also kept, as plain JS escapes.
+    { regex: /^'(?:[^'\\]|\\.|'')*'/, type: 'STRING' },
     { regex: /^#[0-9\p{L}\-]+/u, type: 'STRING' },
     { regex: /^\(/, type: 'PAREN_OPEN' },
     { regex: /^\)/, type: 'PAREN_CLOSE' },
@@ -139,7 +143,8 @@ const tokenizer = (text) => {
     { regex: /^\}/, type: 'BRACE_CLOSE' },
     { regex: /^←/u, type: 'ASSIGN' },
     { regex: /^:/, type: 'GUARD' },
-    { regex: /^⎕[a-z]+/u, type: 'IDENTIFIER' },
+    // System names are case-insensitive (⎕PP is ⎕pp), see the tokenizer loop.
+    { regex: /^⎕[a-zA-Z]+/u, type: 'IDENTIFIER' },
     { regex: /^∘\./u, type: 'SYMBOL' },
     { regex: /^[@\\!\?\*¨,-\/\p{Math}\p{Sm}\p{So}]/u, type: 'SYMBOL' },
   ];
@@ -159,6 +164,14 @@ const tokenizer = (text) => {
             //console.log('String with # prefix detected:', match[0]);
             const strContent = "'"+match[0].slice(1)+"'";
             tokens.push({ type: spec.type, value: strContent });
+          } else if (spec.type === 'IDENTIFIER' && match[0].startsWith('⎕')) {
+            tokens.push({ type: spec.type, value: match[0].toLowerCase() });
+          } else if (spec.type === 'STRING' && match[0].startsWith("'")) {
+            // Re-spelled as a valid JS single-quoted literal: a doubled ''
+            // becomes \', and a raw line break (a string spanning lines)
+            // becomes \n, since emitJs splices the token text in as-is.
+            const inner = match[0].slice(1, -1).replace(/''/g, "\\'").replace(/\r?\n/g, '\\n');
+            tokens.push({ type: spec.type, value: `'${inner}'` });
           } else if (spec.type === 'IDENTIFIER' && /[∆⍙]/u.test(match[0])) {
             // ∆/⍙ aren't legal in a JS identifier, and every APL name ends
             // up as one in the generated code - spell them with $, which no
@@ -261,7 +274,6 @@ const global_category = {
   '@': { category:'D', name: 'at' },
   '↑': { category:'F', name: 'take' },
   '↓': { category:'F', name: 'drop' },
-  '⍣': { category:'D', name: 'power' },
   '⍥': { category:'D', name: 'over' },
   '⍠': { category:'F', name: 'buildObject' },
   // Purely a parse-time marker (see reduceStack): ⍞ relabels the F/M/D
@@ -295,6 +307,9 @@ const global_category = {
   // number. A plain read/write variable (category V, not a function), same
   // as ⎕ itself - ⎕pp←4 compiles to a normal assignment (G.pp = 4).
   '⎕pp': { category:'V', name: 'pp' },
+  // Index origin: fixed at 0 in this implementation. Readable like any
+  // system variable; assigning anything but 0 is an error (see G.io).
+  '⎕io': { category:'V', name: 'io' },
   // Constant JS values, same read/write-variable shape as ⎕pp - ⎕null and
   // ⎕undefined are two genuinely different "nothing" values in JS/JSON,
   // neither of which any APL primitive here otherwise produces.
@@ -446,23 +461,53 @@ const matchRec = (w, a) => {
 
 const mod = (w,a) => w-a*Math.floor(w/(a+((0===a)?1:0)));
 
-const factorial = (n) => {
-  if (n < 0) {
-    throw new Error('Factorial is not defined for negative numbers');
-  } 
-  if (n === 0) {
-    return 1;
+// Gamma: Stirling's series for ln Γ, after shifting x up to ≥ 10 with
+// Γ(x) = Γ(x+n) / (x(x+1)...(x+n-1)), where the series is accurate to
+// double precision; the reflection formula covers x < 0.5.
+const gamma = (x) => {
+  if (x < 0.5) {
+    return Math.PI / (Math.sin(Math.PI * x) * gamma(1 - x));
   }
-  let result = 1;
-  for (let i = 1; i <= n; i++) {
-    result *= i;
+  let shift = 1;
+  while (x < 10) {
+    shift *= x;
+    x += 1;
   }
-  return result;
+  const x2 = x * x;
+  const series = 1 / 12 - (1 / 360 - (1 / 1260 - (1 / 1680 - (1 / 1188 - (691 / 360360 - 1 / (156 * x2)) / x2) / x2) / x2) / x2) / x2;
+  const lnGamma = (x - 0.5) * Math.log(x) - x + 0.5 * Math.log(2 * Math.PI) + series / x;
+  return Math.exp(lnGamma) / shift;
 };
 
+// !⍵ is Γ(⍵+1): exact product for a non-negative integer, gamma otherwise.
+// A negative integer is a pole - DOMAIN ERROR, as in Dyalog (!2.5 is
+// 3.323350970, !¯0.5 is 1.772453851).
+const factorial = (n) => {
+  if (Number.isInteger(n)) {
+    if (n < 0) {
+      throw new Error('DOMAIN ERROR: ! of a negative integer');
+    }
+    let result = 1;
+    for (let i = 2; i <= n; i++) {
+      result *= i;
+    }
+    return result;
+  }
+  return gamma(n + 1);
+};
+
+// ⍺!⍵ (k!n): the binomial coefficient, and its gamma generalization
+// (!n)÷(!k)×!n-k for non-integers.
 const binomial = (n, k) => {
-  if (k < 0 || k > n) {
-    return 0;
+  if (Number.isInteger(n) && Number.isInteger(k) && n >= 0) {
+    if (k < 0 || k > n) {
+      return 0;
+    }
+    let result = 1;
+    for (let i = 1; i <= Math.min(k, n - k); i++) {
+      result = result * (n - Math.min(k, n - k) + i) / i;
+    }
+    return Math.round(result);
   }
   return factorial(n) / (factorial(k) * factorial(n - k));
 };
@@ -1060,9 +1105,14 @@ const roundSignificant = (x, digits) => {
   if (digits === undefined || !Number.isFinite(x) || x === 0) {
     return x;
   }
-  const magnitude = Math.pow(10, digits - Math.ceil(Math.log10(Math.abs(x))));
-  return Math.round(x * magnitude) / magnitude;
+  // toPrecision rather than scaling by a power of 10, which overflows to
+  // Infinity (and then NaN) for very small or very large x.
+  return Number(x.toPrecision(Math.min(Math.max(Math.round(digits), 1), 100)));
 };
+
+// JS number text -> APL spelling: ¯ for every minus sign (mantissa and
+// exponent alike) and Dyalog's E notation, e.g. -1e-7 -> ¯1E¯7.
+const aplNumberText = (text) => text.replace(/e\+?/, 'E').replace(/-/g, '¯').replace('Infinity', '∞');
 
 // Same, recursively applied through (possibly nested) arrays - used to
 // round a whole result/⎕← value for display without touching non-numbers
@@ -1089,7 +1139,7 @@ const formatNum = (x, digits) => {
     return String(x);
   }
   const v = Object.is(roundSignificant(x, digits), -0) ? 0 : roundSignificant(x, digits);
-  return String(v).replace('-', '¯');
+  return aplNumberText(String(v));
 };
 
 const formatCell = (x, digits) => (typeof x === 'string' ? x : formatNum(x, digits));
@@ -1118,7 +1168,7 @@ const formatFixed = (x, decimals) => {
   if (typeof x !== 'number') {
     return String(x);
   }
-  return x.toFixed(decimals).replace('-', '¯');
+  return aplNumberText(x.toFixed(decimals));
 };
 
 const formatArrayFixed = (w, decimals, width) => {
@@ -1368,6 +1418,12 @@ const G = {
   // assigned (⎕pp←4 compiles to a normal G.pp = 4), same as any other
   // reassignable global.
   pp: 10,
+  get io() { return 0; },
+  set io(value) {
+    if (value !== 0) {
+      throw new Error('DOMAIN ERROR: ⎕IO is fixed at 0 in APL.js');
+    }
+  },
   null: null,
   undefined: undefined,
   set quad(value) {
@@ -1567,7 +1623,8 @@ const G = {
   },
   deal: (w, a) => {
     if(a===undefined) {
-      return mdfunc(x => Math.floor(Math.random() * x), undefined, w);
+      // ?0 is a random float in (0,1), as in Dyalog.
+      return mdfunc(x => (x === 0 ? Math.random() : Math.floor(Math.random() * x)), undefined, w);
     }
     if (typeof w === 'number' && typeof a === 'number') {
       if (a > w) {
@@ -1584,19 +1641,9 @@ const G = {
     }
     throw new Error('Unsupported types for deal');
   },
+  // Pervasive like any scalar function (mdfunc), so ⍺ can be a vector too:
+  // 1 2○x is sin x, cos x - previously only a scalar ⍺ was accepted.
   circle: (w, a) => {
-    if(a===undefined) {
-      if (typeof w === 'number') {
-        return Math.PI * w;
-      }
-      if (Array.isArray(w)) {
-        const result = fillShapeRec(shapeRec(w), (prefix, index) => {
-          const v = at(w, prefix);
-          return Math.PI * v;
-        });
-        return result;
-      }
-    }
     const circFunc = [
       (x) =>Math.sqrt(1.0-x*x),
       (x) =>Math.sin(x),
@@ -1619,22 +1666,21 @@ const G = {
       (x) =>Math.atanh(x),
       (x) =>-Math.sqrt(-1.0+x*x),
     ];
-    if (typeof w === 'number' && typeof a === 'number') {
-      return a>=0?circFunc[a](w):circInvFunc[-a](w);
-    }
-    if(Array.isArray(w) && typeof a === 'number') {
-      const func = a>=0?circFunc[a]:circInvFunc[-a];
-      const result = fillShapeRec(shapeRec(w), (prefix, index) => {
-        const v = at(w, prefix);
-        return func(v);
-      });
-      return result;
-    }
-    throw new Error('Unsupported types for circle');
+    const apply = (x, k) => {
+      const func = k >= 0 ? circFunc[k] : circInvFunc[-k];
+      if (!func) {
+        throw new Error(`DOMAIN ERROR: ${k}○ is not supported`);
+      }
+      return func(x);
+    };
+    return mdfunc(x => Math.PI * x, apply, w, a);
   },
   encode: (w, a) => {
-    if (typeof a === 'number')
-      a = [a];
+    // A scalar radix gives one digit per item of ⍵, the result shaped like
+    // ⍵ - verified against real Dyalog: 10⊤123 is 3, 10⊤12 34 is 2 4.
+    if (typeof a === 'number') {
+      return mdfunc(undefined, (x) => encode(x, [a])[0], w, 0);
+    }
     const shapea = shapeRec(a);
     if (typeof w === 'number' && shapea.length === 1) {
       return encode(w, a);
@@ -1750,6 +1796,15 @@ const G = {
   dot: (aa,ww) => (w, a) => {
     if (typeof aa !== 'function' || typeof ww !== 'function') {
       throw new Error('Dot requires two functions');
+    }
+    // A scalar side extends to match the other side's inner axis -
+    // verified against real Dyalog: 2+.×3 4 is 14.
+    if (isScalarLike(a) && !isScalarLike(w)) {
+      a = Array.from({ length: shapeRec(w)[0] }, () => a);
+    } else if (isScalarLike(w) && !isScalarLike(a)) {
+      w = Array.from({ length: shapeRec(a).at(-1) }, () => w);
+    } else if (isScalarLike(w) && isScalarLike(a)) {
+      return ww(w, a);
     }
     const sw = shapeRec(w);
     const sa = shapeRec(a);
@@ -1878,7 +1933,16 @@ const G = {
     return mdfunc(x => Math.abs(x), mod, w, a);
   },
   divide: (w, a) => {
-    return mdfunc(x => 1/x, (x,y) => y/x, w, a);
+    // Verified against real Dyalog: 0÷0 is 1, any other x÷0 (and ÷0) is a
+    // DOMAIN ERROR rather than JS's Infinity/NaN.
+    const div = (x, y) => {
+      if (x === 0) {
+        if (y === 0) return 1;
+        throw new Error('DOMAIN ERROR: division by zero');
+      }
+      return y / x;
+    };
+    return mdfunc(x => div(x, 1), div, w, a);
   },
   plus: (w, a) => {
     return mdfunc(x => x, (x,y) => y+x, w, a);
@@ -2079,9 +2143,9 @@ const G = {
           // primitive to expose its own identity element (+⌿⍬ is 0, ×⌿⍬
           // is 1, ∧⌿⍬ is 1, etc. in real Dyalog), which nothing here
           // currently does. Only the two most common cases are covered.
-          if (f === G.plus) return 0;
-          if (f === G.times) return 1;
-          throw new Error('Reduce cannot be applied to an empty array');
+          const identity = REDUCE_IDENTITY.get(f);
+          if (identity !== undefined) return identity;
+          throw new Error('DOMAIN ERROR: no identity element to reduce an empty array with');
         }
         return arr.reduceRight(f);
       };
@@ -2106,7 +2170,7 @@ const G = {
           return arr;
         }
         if (arr.length === 0) {
-          throw new Error('Scan cannot be applied to an empty array');
+          return arr;
         }
         // Item i is f⌿ of the first i+1 items, reduced right-to-left like
         // any other APL reduction - a running left-to-right accumulator
@@ -2470,6 +2534,15 @@ const G = {
     return wasStringA ? result.join('') : result;
   }
 };
+
+// Identity elements for reducing an empty array (f⌿⍬), per Dyalog: the
+// value e with e f x ≡ x - e.g. ⌈⌿⍬ is ¯∞ (the most negative number).
+const REDUCE_IDENTITY = new Map([
+  [G.plus, 0], [G.minus, 0], [G.times, 1], [G.divide, 1], [G.residue, 0],
+  [G.ceiling, -Infinity], [G.floor, Infinity], [G.exp, 1], [G.factorial, 1],
+  [G.and, 1], [G.or, 0], [G.equals, 1], [G.not_equals, 0],
+  [G.less_than, 0], [G.greater_than, 0], [G.less_than_or_equal, 1], [G.greater_than_or_equal, 1],
+]);
 
 // --- Parser support: per-scope name lookup and the boundary/category sets
 // reduceStack's grammar rules (below) pattern-match against. ---
@@ -3121,7 +3194,8 @@ const parseExpression = (expression, scope) => {
     scope.pop();
     return { type: 'Block', declarations, statements };
   }
-  const tokens = expression.reverse();
+  // A reversed copy: the caller's token list is left untouched.
+  const tokens = expression.slice().reverse();
   tokens.push({ type: 'Edge', value: 'Edge' });
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
@@ -3143,6 +3217,11 @@ const parseExpression = (expression, scope) => {
         token.type === 'SYMBOL'
       ) {
       const [cat_name, global] = find_category(token.value, scope);
+      if (!cat_name && token.type === 'SYMBOL') {
+        // A glyph with no entry would otherwise compile to G.<glyph> - a
+        // baffling JS syntax error rather than an APL one.
+        throw new Error(`SYNTAX ERROR: unknown primitive ${token.value} at position ${token.pos}`);
+      }
       reg.category = cat_name ? cat_name.category : 'V';
       const name = cat_name && cat_name.name ? cat_name.name : token.value;
       reg.node = { type: 'Identifier', name, global };
@@ -3150,7 +3229,7 @@ const parseExpression = (expression, scope) => {
       reg.category =
         token.type === 'NUMBER' ? 'V' :
         token.type === 'STRING' ? 'V' : token.value;
-      const text = token.type === 'NUMBER' ? token.value.replace('¯', '-') : token.value;
+      const text = token.type === 'NUMBER' ? token.value.replaceAll('¯', '-') : token.value;
       reg.node = { type: 'Raw', text };
     }
     stack.push(reg);

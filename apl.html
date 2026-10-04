@@ -1365,6 +1365,7 @@
       { glyph: "≢", name: "Tally", monadic: "Length: <code>≢1 2 3</code> → 3", dyadic: "Not-match: <code>1 2≢1 2</code> → 0" },
       { glyph: "⎕", name: "Quad", monadic: "Print/emit a value: <code>⎕←value</code>" },
       { glyph: "⎕typeof", name: "Type of", monadic: "JS type of a value: <code>⎕typeof 5</code> → \"number\", <code>⎕typeof 1 2 3</code> → \"array\"" },
+      { glyph: "⎕io", name: "Index origin", monadic: "Read-only here: always 0 (<code>⎕io←0</code> is accepted, any other value is a DOMAIN ERROR). System names are case-insensitive: <code>⎕IO</code>, <code>⎕PP</code>." },
       { glyph: "⎕pp", name: "Print precision", monadic: "Read/write variable: significant digits shown by <code>⍕</code> and <code>⎕←</code> (default 10): <code>⎕pp←4 ⋄ ⍕2÷3</code> → \"0.6667\". Stored values keep full precision - only display rounds." },
       { glyph: "⎕null", name: "JS null", monadic: "Read/write variable holding JS's <code>null</code>: <code>⎕typeof ⎕null</code> → \"null\"" },
       { glyph: "⎕undefined", name: "JS undefined", monadic: "Read/write variable holding JS's <code>undefined</code>: <code>⎕typeof ⎕undefined</code> → \"undefined\"" },
