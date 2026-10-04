@@ -121,7 +121,10 @@ const tokenizer = (text) => {
     // collide with anything - see the editor's "\dash" input escape.
     { regex: /^—[^\S\r\n]*\r?\n/u, type: 'LINE_CONTINUATION' },
     { regex: /^⍝[^\n]*/u, type: 'COMMENT' },
-    { regex: /^(⍺{1,2}|⍵{1,2}|∇{1,2}|[⍶⍹⍙])/u, type: 'SPECIAL_VAR' },
+    { regex: /^(⍺{1,2}|⍵{1,2}|∇{1,2}|[⍶⍹])/u, type: 'SPECIAL_VAR' },
+    // Names may use ∆ and ⍙ like letters (Dyalog's own naming rule). Checked
+    // ahead of SYMBOL below, which would otherwise grab ∆ (a math symbol).
+    { regex: /^[\p{L}_∆⍙][\p{L}0-9_∆⍙]*/u, type: 'IDENTIFIER' },
     // Excludes \r\n on purpose - \s alone would greedily swallow a trailing
     // line's newline together with any spaces/tabs before it (e.g. "1   \n"),
     // silently dropping the SEPARATOR token and fusing two lines into one
@@ -139,7 +142,6 @@ const tokenizer = (text) => {
     { regex: /^⎕[a-z]+/u, type: 'IDENTIFIER' },
     { regex: /^∘\./u, type: 'SYMBOL' },
     { regex: /^[@\\!\?\*¨,-\/\p{Math}\p{Sm}\p{So}]/u, type: 'SYMBOL' },
-    { regex: /^[\p{L}_][\p{L}0-9_]*/u, type: 'IDENTIFIER' }
   ];
     
   let cursor = 0;
@@ -157,6 +159,11 @@ const tokenizer = (text) => {
             //console.log('String with # prefix detected:', match[0]);
             const strContent = "'"+match[0].slice(1)+"'";
             tokens.push({ type: spec.type, value: strContent });
+          } else if (spec.type === 'IDENTIFIER' && /[∆⍙]/u.test(match[0])) {
+            // ∆/⍙ aren't legal in a JS identifier, and every APL name ends
+            // up as one in the generated code - spell them with $, which no
+            // APL name can contain, so nothing can collide.
+            tokens.push({ type: spec.type, value: match[0].replaceAll('∆', '$D').replaceAll('⍙', '$U') });
           } else {
             tokens.push({ type: spec.type, value: match[0] });
           }
@@ -604,6 +611,35 @@ const at = (arr, idx) => {
   return result;
 };
 
+// Depth (monadic ≡): 0 for a simple scalar, otherwise 1 + the deepest
+// depth among the CONTENTS of its scalar cells (a box's content is what it
+// wraps, any other cell is its own content) - negated when those depths
+// differ, as in Dyalog. Cells are found via shapeRec, so a plain matrix
+// (rows are axes, not items) stays depth 1, and a box (rank 0, one cell)
+// adds exactly one level. A multi-character string counts as a simple
+// vector, a 1-character one as a scalar. Verified against real Dyalog:
+// ≡5 is 0, ≡1 2 is 1, ≡(1 2)(3 4) is 2, ≡1(2 3) is ¯2, ≡⍬ is 1.
+const depth = (w) => {
+  if (typeof w === 'string') {
+    return w.length === 1 ? 0 : 1;
+  }
+  if (!Array.isArray(w)) {
+    return 0;
+  }
+  const contents = [];
+  if (isBoxed(w)) {
+    contents.push(w[0]);
+  } else {
+    traverseShapeRec(shapeRec(w), (prefix) => {
+      const cell = at(w, prefix);
+      contents.push(isBoxed(cell) ? cell[0] : cell);
+    });
+  }
+  const depths = contents.map(depth);
+  const max = Math.max(0, ...depths.map(Math.abs));
+  return depths.every((d) => d === max) ? 1 + max : -(1 + max);
+};
+
 const assignRec = (arr, idx, value) => {
   if(typeof idx === 'number') {
     arr[idx] = value;
@@ -909,32 +945,62 @@ const rotateAxis = (w, a, firstAxis) => {
   });
 };
 
-const partitionEnclose = (a, w) => {
-  if (typeof w === 'string') {
-    w = w.split('');
+// Shared by dyadic ⊂ and ⊆: ⍺ (a scalar extends) is split against ⍵'s
+// items, and every resulting partition comes back enclosed. A string ⍵ is
+// split into characters and each partition joined back into a string, in
+// keeping with this file's "a string is one JS string" model.
+const partitionArgs = (a, w, name) => {
+  const wasString = typeof w === 'string';
+  const items = wasString ? w.split('') : w;
+  if (!Array.isArray(items)) {
+    throw new Error(`DOMAIN ERROR: ${name} requires an array right argument`);
   }
-  if (!Array.isArray(w) || !Array.isArray(a)) {
-    throw new Error('Partitioned enclose requires arrays');
+  const keys = Array.isArray(a) ? a.map((k) => (isBoxed(k) ? k[0] : k)) : items.map(() => a);
+  if (keys.length !== items.length) {
+    throw new Error(`LENGTH ERROR: ${name} requires ⍺ and ⍵ of the same length`);
   }
-  const result = [];
-  let current = null;
-  let currentKey = null;
-  for (let i = 0; i < w.length; i++) {
-    const key = a[i];
-    if (!key) {
-      current = null;
-      currentKey = null;
-      continue;
+  const finish = (parts) => parts.map((p) => (wasString ? p.join('') : boxOf(p)));
+  return { items, keys, finish };
+};
+
+// Partitioned enclose (⍺⊂⍵): ⍺[i] is how many NEW partitions start right
+// before ⍵[i] (0 just continues the current one; more than 1 inserts
+// empties), and items before the first partition start are dropped.
+// Verified against real Dyalog: 1 0 1 0⊂1 2 3 4 is (1 2)(3 4), and
+// 0 1 0 2⊂1 2 3 4 is (2 3)⍬(,4).
+const partitionedEnclose = (a, w) => {
+  const { items, keys, finish } = partitionArgs(a, w, 'Partitioned enclose');
+  const parts = [];
+  items.forEach((x, i) => {
+    for (let k = 0; k < keys[i]; k++) {
+      parts.push([]);
     }
-    if (current !== null && key === currentKey) {
-      current.push(w[i]);
-    } else {
-      current = [w[i]];
-      result.push(current);
-      currentKey = key;
+    if (parts.length > 0) {
+      parts[parts.length - 1].push(x);
     }
-  }
-  return result;
+  });
+  return finish(parts);
+};
+
+// Partition (⍺⊆⍵): a new partition starts wherever ⍺ grows over its left
+// neighbour, and a 0 drops its item (and ends the current partition).
+// Verified against real Dyalog: 1 1 2 2⊆1 2 3 4 is (1 2)(3 4), while
+// 2 2 1⊆1 2 3 is one partition (1 2 3) - 1 doesn't exceed 2.
+const partition = (a, w) => {
+  const { items, keys, finish } = partitionArgs(a, w, 'Partition');
+  const parts = [];
+  let previous = 0;
+  items.forEach((x, i) => {
+    const key = keys[i];
+    if (key !== 0) {
+      if (key > previous) {
+        parts.push([]);
+      }
+      parts[parts.length - 1].push(x);
+    }
+    previous = key;
+  });
+  return finish(parts);
 };
 
 const flattenDeep = (w) => {
@@ -1323,7 +1389,9 @@ const G = {
       a = [a];
     }
     const m = w.length;
-    const result = fillShapeRec(a, (prefix, index) => w[index % m]);
+    // An empty ⍵ has nothing to cycle through, so every position gets the
+    // fill element instead - verified against real Dyalog: 5⍴⍬ is 0 0 0 0 0.
+    const result = fillShapeRec(a, (prefix, index) => (m === 0 ? 0 : w[index % m]));
     if (a.includes(0)) {
       // Any zero dimension collapses everything nested inside it to a
       // bare [] - e.g. 0 3⍴w has nothing left to structurally reveal the
@@ -1335,7 +1403,10 @@ const G = {
     return result;
   },
   match: (w, a) => {
-    return matchRec(w, a);  
+    if (a === undefined) {
+      return depth(w);
+    }
+    return matchRec(w, a);
   },
   tally: (w, a) => {
     if (a !== undefined) {
@@ -1831,8 +1902,12 @@ const G = {
       }
       traverseShapeRec(shapew, (prefix) => {
         const v = at(w, prefix);
+        // Each multi-axis index is enclosed, exactly like ⍳'s own index
+        // vectors (see G.iota) - left raw, shapeRec would misread the
+        // result as one extra real axis. Verified against real Dyalog:
+        // ⍴⍸2 2⍴1 0 0 1 is ,2.
         for(let i=0; i<v; i++) {
-          result.push(prefix);
+          result.push(boxOf(prefix));
         }
       });
       return result;
@@ -2105,13 +2180,18 @@ const G = {
       // vector, or a value that's already boxed) gets wrapped/re-wrapped.
       return Array.isArray(w) ? boxOf(w) : w;
     }
-    return partitionEnclose(a, w);
+    return partitionedEnclose(a, w);
   },
   partition: (w, a) => {
     if (a === undefined) {
-      return [w];
+      // Monadic ⊆ (nest) encloses only a SIMPLE array - one with no
+      // nested items - and leaves anything already nested, or a scalar,
+      // alone. Verified against real Dyalog: ≡⊆1 2 3 is 2, and
+      // (⊆(1 2)(3 4))≡(1 2)(3 4) is 1.
+      const isSimple = Array.isArray(w) && !isBoxed(w) && w.every((x) => !Array.isArray(x));
+      return isSimple ? boxOf(w) : w;
     }
-    return partitionEnclose(a, w);
+    return partition(a, w);
   },
   pick: (w, a) => {
     if (a===undefined) {
@@ -2260,7 +2340,8 @@ const G = {
     if (!Array.isArray(warr)) {
       throw new Error('Find requires an array right argument');
     }
-    const parr = Array.isArray(a) ? a : [a];
+    // A string pattern is a run of characters to search for, same as ⍵.
+    const parr = typeof a === 'string' ? a.split('') : (Array.isArray(a) ? a : [a]);
     const n = warr.length;
     const m = parr.length;
     const result = new Array(n).fill(0);
@@ -3015,7 +3096,7 @@ const parseExpression = (expression, scope) => {
   }
   // Post-parsing structural check
   if (stack.length > 2) {
-    console.log("❌ SYNTAX ERROR: The stack ended with orphaned elements!:", stack.slice(1).map(e => emitJs(e.node)).join(', '));
+    throw new Error(`SYNTAX ERROR: could not combine ${stack.slice(0, -1).map(e => emitJs(e.node)).join(', ')}`);
   }
   return stack[0].node;
 }
