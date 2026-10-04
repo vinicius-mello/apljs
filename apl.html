@@ -1357,7 +1357,7 @@
       { glyph: "⍨", name: "Selfie (operator)", monadic: "Both args = ⍵: <code>+⍨3</code> → 6", dyadic: "Swap args: <code>5-⍨2</code> → ¯3" },
       { glyph: ",", name: "Comma", monadic: "Ravel: <code>,2 3⍴⍳6</code> → flat vector", dyadic: "Catenate: <code>1 2,3 4</code> → 1 2 3 4" },
       { glyph: "⍳", name: "Iota", monadic: "Index generator: <code>⍳5</code> → 0 1 2 3 4", dyadic: "Index of: <code>10 20 30⍳20</code> → 1" },
-      { glyph: "⍸", name: "Where / interval index", monadic: "Indices where true: <code>⍸0 1 1 0</code> → 1 2", dyadic: "Interval index of value in boundaries" },
+      { glyph: "⍸", name: "Where / interval index", monadic: "Indices where true: <code>⍸0 1 1 0</code> → 1 2", dyadic: "Interval index: <code>10 20 30⍸5 15 30</code> → ¯1 0 2" },
       { glyph: "⍋", name: "Grade up", monadic: "Ascending sort indices: <code>⍋3 1 2</code> → 1 2 0" },
       { glyph: "⍒", name: "Grade down", monadic: "Descending sort indices: <code>⍒3 1 2</code> → 0 2 1" },
       { glyph: "⍣", name: "Power (operator)", dyadic: "Repeat n times: <code>(2×)⍣3⊢1</code> → 8, or until a condition: <code>{⍵×2}⍣{⍺>100}1</code> → 128" },
