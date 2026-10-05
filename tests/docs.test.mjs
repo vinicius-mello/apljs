@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluateApl, aplToJavaScript, G, global_category } from '../apl.js';
-import { sample, exampleIds, primitiveDocs, graphicsDocs, ffiExamples, escapes } from './html-data.mjs';
+import { sample, exampleIds, primitiveDocs, graphicsDocs, ffiExamples, escapes, languageBar, glyphExtraNames } from './html-data.mjs';
 
 // Everything the REPL page shows as runnable APL - the Insert Example
 // samples, the help's primitive table, its SVG/FFI examples - checked
@@ -99,4 +99,13 @@ test('every primitive glyph has a help entry, and every non-keyboard one an esca
   assert.deepEqual(glyphs.filter((g) => !documented.has(g)), [], 'glyphs missing from PRIMITIVE_DOCS');
   const offKeyboard = glyphs.filter((g) => !g.startsWith('⎕') && /[^\x00-\x7F]/.test(g));
   assert.deepEqual(offKeyboard.filter((g) => ![...g].every((c) => escaped.has(c))), [], 'glyphs without an escape');
+});
+
+test('the language bar offers every primitive glyph once, each with a name', () => {
+  const bar = languageBar();
+  assert.deepEqual(bar.filter((g, i) => bar.indexOf(g) !== i), [], 'duplicated glyphs');
+  const named = new Set([...primitiveDocs().flatMap((e) => e.glyph.split(' ')), ...Object.keys(glyphExtraNames())]);
+  assert.deepEqual(bar.filter((g) => !named.has(g)), [], 'glyphs without a name');
+  const glyphs = Object.keys(global_category).filter((g) => !/^[A-Za-z]/.test(g) && g !== '→' && !g.startsWith('⎕'));
+  assert.deepEqual(glyphs.filter((g) => ![...g].every((c) => bar.includes(c))), [], 'primitives missing from the bar');
 });

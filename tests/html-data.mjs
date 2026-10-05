@@ -39,6 +39,8 @@ export const primitiveDocs = () => literalAfter('PRIMITIVE_DOCS');
 export const graphicsDocs = () => literalAfter('GRAPHICS_DOCS');
 export const ffiExamples = () => literalAfter('FFI_EXAMPLES');
 export const escapes = () => literalAfter('APL_ESCAPES');
+export const languageBar = () => literalAfter('LANGUAGE_BAR');
+export const glyphExtraNames = () => literalAfter('GLYPH_EXTRA_NAMES');
 export const exampleIds = () => {
   const block = html.slice(html.indexOf('const EXAMPLES = ['), html.indexOf('];', html.indexOf('const EXAMPLES = [')));
   return [...block.matchAll(/code: (\w+)/g)].map((m) => m[1]);
